@@ -1,1 +1,10 @@
-requests
+# Framework & Servidor ASGI
+fastapi>=0.110.0
+uvicorn>=0.28.0
+
+# Validação e Manipulação de Dados
+pydantic>=2.6.0
+pandas>=2.2.0
+
+# Cliente HTTP
+requests>=2.31.0
