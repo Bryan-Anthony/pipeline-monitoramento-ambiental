@@ -1,0 +1,43 @@
+# Ambientes virtuais
+.venv/
+venv/
+env/
+ENV/
+
+# Caches e ficheiros compilados do Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Variáveis de ambiente e segredos
+.env
+.env.local
+*.env
+
+# Sistema Operativo - macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Sistema Operativo - Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Sistema Operativo - Linux
+*~
+.fuse_hidden*
+.directory
+
+# IDEs e Editores de Código
+.vscode/
+.idea/
+*.swp
+
+# Logs e Testes
+*.log
+.pytest_cache/
+.coverage
