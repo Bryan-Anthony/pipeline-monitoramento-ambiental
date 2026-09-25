@@ -1,13 +1,17 @@
-# Framework & Servidor ASGI
+#Framework & Servidor ASGI
 fastapi>=0.110.0
 uvicorn>=0.28.0
 
-# Validação e Manipulação de Dados
+#Validação e Manipulação de Dados
 pydantic>=2.6.0
 pandas>=2.2.0
+numpy>=1.26.0
+scipy>=1.11.0
+cryptography>=42.0.0
+pyodbc>=5.1.0
 
-# Cliente HTTP
+#Cliente HTTP
 requests>=2.31.0
 
-# Testes
+#Testes
 pytest>=8.0.0
