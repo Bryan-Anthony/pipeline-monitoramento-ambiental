@@ -8,3 +8,6 @@ pandas>=2.2.0
 
 #Cliente HTTP
 requests>=2.31.0
+
+#Conexao com SQL Server
+pyodbc>=5.1.0
