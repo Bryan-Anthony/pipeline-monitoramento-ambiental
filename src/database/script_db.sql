@@ -24,13 +24,13 @@ CREATE TABLE projeto (
     latitude DECIMAL(9,6),
     longitude DECIMAL(9,6),
     createdAd DATETIME DEFAULT GETDATE(),
-    updatedAt DATETIME NULL,
+    updatedAt DATETIME DEFAULT GETDATE(),
 
     -- FK: relaciona Projeto com Cliente
     fkCliente INT NOT NULL,
 
     CONSTRAINT fkProjetosClientes
-        FOREIGN KEY (idCliente)
+        FOREIGN KEY (fkCliente)
         REFERENCES cliente(idCliente)
 );
 
@@ -51,7 +51,7 @@ CREATE TABLE leitura (
 );
 
 
-INSERT INTO cliente (idCliente, nomeCliente, phCliente, temperaturaCliente) VALUES
+INSERT INTO cliente (nomeCliente, phCliente, temperaturaCliente) VALUES
     ('Vila', 5.87, 28.3),
     ('Joana', 5.10, 26.9),
     ('Dalas', 4.48, 27.9),
@@ -59,9 +59,14 @@ INSERT INTO cliente (idCliente, nomeCliente, phCliente, temperaturaCliente) VALU
     ('Fonte Mineralba', 8.26, 23.8);
 
 
-INSERT INTO projeto (codigoProjeto, nomeProjeto, descricao, latitude, longitude, createdAd, updatedAt, idCliente) VALUES
-    ('2412377', 'QMStation1', 'Testes de conectividade e usabilidade para estação remota de monitoramento da qualidade da água', '37,424,946', '-79,191,969', '2024-01-25T14:16:26Z', '2024-03-18T13:07:02Z', 1);
+INSERT INTO projeto (codigoProjeto, nomeProjeto, descricao, latitude, longitude, createdAd, updatedAt, fkCliente) VALUES
+    ('2412377', 'QMStation1', 'Testes de conectividade e usabilidade para estação remota de monitoramento da qualidade da água', '37.424946', '-79.191969', '2024-01-25T14:16:26Z', '2024-03-18T13:07:02Z', 1);
+
 
 COMMIT TRANSACTION;
 GO
-ROLLBACK TRANSACTION;
+-- ROLLBACK TRANSACTION;
+
+SELECT * FROM cliente; 
+SELECT * FROM leitura; 
+SELECT * FROM projeto; 
