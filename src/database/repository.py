@@ -1,50 +1,73 @@
-# from src.database.db_manager import DatabaseManager
+from src.database.db_manager import DatabaseManager
+import pandas as pd
 
 
-# class MonitoramentoRepository:
+class MonitoramentoRepository:
 
-#     def __init__(self):
-#         self.db = DatabaseManager()
+    def __init__(self):
+        self.db = DatabaseManager()
 
-#     def inserir_dados(self, df):
+    def inserir_dados(self, df, id_projeto):
 
-#         conexao = self.db.conectar()
+        conexao = self.db.conectar()
 
-#         try:
+        try:
 
-#             cursor = conexao.cursor()
+            cursor = conexao.cursor()
 
-#             sql = """
-#                 INSERT INTO Temperatura
-#                 (
-#                     Valor,
-#                     Data
-#                 )
-#                 VALUES (?, ?)
-#             """
+            sql = """
+                INSERT INTO leitura
+                (
+                    dataHora,
+                    temperatura,
+                    ph,
+                    idProjeto
+                )
+                VALUES (?, ?, ?, ?)
+            """
 
-#             for _, linha in df.iterrows():
+            for _, linha in df.iterrows():
 
-#                 cursor.execute(
-#                     sql,
-#                     linha["temperatura"],
-#                     linha["data_hora"]
-#                 )
+                data_hora = linha["data_hora"]
+                temperatura = linha["temperatura"]
+                ph = linha["ph"]
 
-#             conexao.commit()
+                # NaN / NaT -> None
+                if pd.isna(data_hora):
+                    data_hora = None
 
-#             print("Dados inseridos com sucesso!")
+                if pd.isna(temperatura):
+                    temperatura = None
 
-#         except Exception as erro:
+                if pd.isna(ph):
+                    ph = None
 
-#             conexao.rollback()
+                cursor.execute(
+                    sql,
+                    data_hora,
+                    temperatura,
+                    ph,
+                    id_projeto
+                )
 
-#             print(f"Erro ao inserir dados: {erro}")
+            conexao.commit()
 
-#             raise
+            print("Dados inseridos com sucesso!")
 
-#         finally:
+            
 
-#             cursor.close()
+        except Exception as erro:
 
-#             self.db.fechar(conexao)
+            conexao.rollback()
+
+            print(f"Erro ao inserir dados: {erro}")
+
+            raise
+
+        finally:
+
+            cursor.close()
+
+            self.db.fechar(conexao)
+
+        #função filtro tabela leitura _ tabela cliente

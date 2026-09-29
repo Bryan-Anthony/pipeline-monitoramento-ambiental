@@ -18,11 +18,11 @@ class IngestionService:
         if not valor:
             return None
 
-        return datetime.fromisoformat(
+        data = datetime.fromisoformat(
             valor.replace("Z", "+00:00")
-        ).strftime("%Y-%m-%d %H:%M:%S%z")[:-2] + ":" + datetime.fromisoformat(
-            valor.replace("Z", "+00:00")
-        ).strftime("%Y-%m-%d %H:%M:%S%z")[-2:] 
+        )
+    # Remove o timezone para compatibilidade com SQL Server DATETIME
+        return data.replace(tzinfo=None)
 
     def importar_dados(self):
 
@@ -63,7 +63,7 @@ class IngestionService:
         for registro in feeds:
 
             item = {
-                "idField": registro.get("entry_id"),
+               
                 "data_hora": self.converter_datetime(registro.get("created_at")),
                 "temperatura": registro.get("field1"),
                 "ph": registro.get("field8"),
@@ -83,5 +83,11 @@ class IngestionService:
 
         # 7. Transformação
         df = transformar_dados(df)
+
+        print("\nTipos DEPOIS da transformação:")
+        print(df.dtypes)
+
+        print("\nPrimeira data:")
+        print(df["data_hora"].iloc[0])
 
         return df
