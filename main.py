@@ -1,21 +1,22 @@
 from src.ingestion.service import IngestionService
-#from src.database.repository import MonitoramentoRepository
+from src.database.repository import MonitoramentoRepository
 
 def main():
     service = IngestionService()
 
-    dados = service.importar_dados()
+    df = service.importar_dados()
 
     print("\n Dados processados:")
-    print(dados)
+    print(df)
 
     print("\n Tipos das colunas:")
-    print(dados.dtypes)
+    print(df.dtypes)
 
     # Enviar dados para o banco
-    #repository = MonitoramentoRepository()
+    repository = MonitoramentoRepository()
 
-    #repository.inserir_dados(dados)
+    repository.inserir_dados(df,id_projeto = 1)
+
 
     #print(dados)
 

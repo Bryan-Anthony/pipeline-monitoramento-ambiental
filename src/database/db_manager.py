@@ -10,8 +10,8 @@ class DatabaseManager:
             #"SERVER=localhost\SQLEXPRESS;"
             #"SERVER=.\SQLEXPRESS;"
             #"SERVER=localhost;"
-            "SERVER=(localdb)\MSSQLLocalDB;"
-            "DATABASE=Walter;"
+            "SERVER=(localdb)\\MSSQLLocalDB;"
+            "DATABASE=walter;"
             "Trusted_Connection=yes;"
             "TrustServerCertificate=yes;"
     )
