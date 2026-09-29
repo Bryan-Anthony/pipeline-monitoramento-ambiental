@@ -22,4 +22,10 @@ def tratar_dados(df):
         # -9999 representa valor inválido/ausente
         df.loc[df[coluna] == -9999, coluna] = None
 
+        # Garantir que a data seja datetime
+        df["data_hora"] = pd.to_datetime(
+            df["data_hora"],
+            errors="coerce"
+        )
+
     return df
