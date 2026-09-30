@@ -41,3 +41,6 @@ $RECYCLE.BIN/
 *.log
 .pytest_cache/
 .coverage
+
+# Arquivos gerados pelo pipeline (gráficos e relatórios)
+reports/

@@ -70,4 +70,60 @@ class MonitoramentoRepository:
 
             self.db.fechar(conexao)
 
-        #função filtro tabela leitura _ tabela cliente
+    def buscar_leituras(self):
+        """
+        Busca todas as leituras registradas na tabela 'leitura'.
+        Essas leituras foram inseridas pela ingestão da API.
+        Retorna um DataFrame com as colunas: data_hora, temperatura, ph.
+        """
+        conexao = self.db.conectar()
+
+        try:
+            sql = """
+                SELECT
+                    dataHora   AS data_hora,
+                    temperatura,
+                    ph
+                FROM leitura
+            """
+
+            # Lê o resultado direto para um DataFrame usando pandas
+            df = pd.read_sql(sql, conexao)
+
+            return df
+
+        except Exception as erro:
+            print(f"Erro ao buscar leituras: {erro}")
+            raise
+
+        finally:
+            self.db.fechar(conexao)
+
+    def buscar_clientes(self):
+        """
+        Busca os dados das águas engarrafadas registradas na tabela 'cliente'.
+        Esses dados foram inseridos manualmente no script_db.sql como referência de comparação.
+        Retorna um DataFrame com as colunas: nome, ph, temperatura.
+        """
+        conexao = self.db.conectar()
+
+        try:
+            sql = """
+                SELECT
+                    nomeCliente   AS nome,
+                    phCliente     AS ph,
+                    temperaturaCliente AS temperatura
+                FROM cliente
+            """
+
+            # Lê o resultado direto para um DataFrame usando pandas
+            df = pd.read_sql(sql, conexao)
+
+            return df
+
+        except Exception as erro:
+            print(f"Erro ao buscar clientes: {erro}")
+            raise
+
+        finally:
+            self.db.fechar(conexao)
