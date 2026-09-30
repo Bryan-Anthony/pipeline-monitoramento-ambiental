@@ -3,6 +3,7 @@ import pandas as pd
 
 def test_tratar_dados_converte_para_numerico():
     df = pd.DataFrame({
+        "data_hora": ["2026-09-28 10:00:00"],
         "temperatura": ["25.5"],
         "ph": ["7.2"]
     })
@@ -18,6 +19,7 @@ def test_tratar_dados_converte_para_numerico():
 # testa valores invalidos
 def test_tratar_dados_valor_invalido():
     df = pd.DataFrame({
+        "data_hora": ["2026-09-28 10:00:00"],
         "temperatura": ["abc"],
         "ph": ["invalido"]
     })
@@ -33,35 +35,41 @@ def test_tratar_dados_valor_invalido():
 # Testa se transforma -9999 em NaN
 def test_tratar_dados_valor_menos_9999():
     df = pd.DataFrame({
+        "data_hora": ["2026-09-28 10:00:00"],
         "temperatura": [-9999],
         "ph": [-9999]
     })
 
     resultado = tratar_dados(df)
 
-    # Verifica se -9999 foi convertido para valor ausente na temperatura
+    # Verifica se -9999 foi convertido para valor ausente na temperatura (NaN)
     assert pd.isna(resultado["temperatura"].iloc[0])
 
-    # Verifica se -9999 foi convertido para valor ausente no pH
+    # Verifica se -9999 foi convertido para valor ausente no pH (NaN)
     assert pd.isna(resultado["ph"].iloc[0])
 
 #testa se ela consegue tratar varias linhas de uma vez 
 def test_tratar_dados_varias_linhas():
     df = pd.DataFrame({
+           "data_hora": [
+            "2026-09-28 10:00:00",
+            "2026-09-28 11:00:00",
+            "2026-09-28 12:00:00"
+        ],
         "temperatura": ["25.5", "30.2", "abc"],
         "ph": ["7.2", "6.8", "invalido"]
     })
 
     resultado = tratar_dados(df)
 
-    # Verifica a primeira linha
+    # Verifica se a primeira linha os valores foram corretamente convertidos para números 
     assert resultado["temperatura"].iloc[0] == 25.5
     assert resultado["ph"].iloc[0] == 7.2
 
-    # Verifica a segunda linha
+    # Verifica se a segunda linha os valores foram corretamente convertidos para números 
     assert resultado["temperatura"].iloc[1] == 30.2
     assert resultado["ph"].iloc[1] == 6.8
 
-    # Verifica a terceira linha, que contém valores inválidos
+    # Verifica a terceira linha, que contém valores inválidos ( Transforma em NaN)
     assert pd.isna(resultado["temperatura"].iloc[2])
     assert pd.isna(resultado["ph"].iloc[2])
