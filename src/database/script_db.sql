@@ -65,8 +65,9 @@ INSERT INTO projeto (codigoProjeto, nomeProjeto, descricao, latitude, longitude,
 
 COMMIT TRANSACTION;
 GO
+
 -- ROLLBACK TRANSACTION;
 
-SELECT * FROM cliente; 
-SELECT * FROM leitura; 
-SELECT * FROM projeto; 
+-- SELECT * FROM cliente; 
+-- SELECT * FROM leitura; 
+-- SELECT * FROM projeto; 
