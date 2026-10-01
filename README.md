@@ -1,32 +1,14 @@
-# 💧 Monitoramento da Qualidade da Água
+#  Pipeline de Monitoramento Ambiental
+Pipeline de dados desenvolvido em **Python** para ingestão, tratamento, validação, transformação, persistência e análise de dados ambientais.
+O projeto utiliza dados obtidos através da **ThingSpeak API**, realiza o processamento das informações e armazena os dados em um banco de dados **SQL Server**. Após a persistência, os dados são utilizados para análises estatísticas, identificação de outliers e geração de gráficos e relatórios.
 
-Pipeline em Python para transformar leituras de uma estação de monitoramento ambiental em análises claras sobre **temperatura** e **pH da água**.
+## O Produto
 
-O projeto busca dados de sensores na API ThingSpeak, trata e valida as leituras, salva o histórico no SQL Server e entrega gráficos e um relatório textual para apoiar a análise da qualidade da água.
+O resultado final é um **relatório de monitoramento ambiental** gerado automaticamente a partir das leituras da estação `QMStation1`.
+O projeto trabalha com dados de monitoramento ambiental, incluindo informações de **temperatura e pH**.
 
----
 
-## O produto
-
-O produto final é um **relatório de monitoramento ambiental** gerado automaticamente a partir das leituras da estação `QMStation1`.
-
-Ao executar o pipeline, o projeto gera na pasta `reports/`:
-
-- Histogramas de temperatura e pH
-- Boxplots para identificar dispersão e valores fora do padrão
-- Gráficos de comparação entre a água monitorada e águas engarrafadas de referência
-- Arquivo `diagnostico.txt` com estatísticas, quantidade de leituras e detecção de outliers
-
-### Perguntas respondidas
-
-- Qual é a média, mediana, mínimo e máximo de temperatura e pH?
-- Existem valores anômalos nas leituras?
-- Como os dados da água monitorada se comparam com referências cadastradas?
-- Como a temperatura e o pH estão distribuídos nos dados coletados?
-
----
-
-## Fluxo do pipeline
+##  Fluxo do Pipeline
 
 ```text
 ThingSpeak API
@@ -54,52 +36,7 @@ Relatórios na pasta reports/
 5. **Análise:** calcula estatísticas descritivas e identifica outliers pelo método IQR.
 6. **Entrega:** gera gráficos PNG e um diagnóstico textual.
 
----
-
-## Dados monitorados
-
-| Dado | Origem | Uso |
-|---|---|---|
-| `data_hora` | `created_at` da API | Organização temporal das leituras |
-| `temperatura` | `field1` da API | Monitoramento da temperatura da água |
-| `ph` | `field8` da API | Monitoramento da acidez ou alcalinidade |
-
-A estação cadastrada no banco é a **QMStation1**, associada ao canal ThingSpeak `2412377`.
-
----
-
-## Análises entregues
-
-### Estatísticas descritivas
-
-Para temperatura e pH, o pipeline calcula:
-
-- Média
-- Mediana
-- Desvio padrão
-- Mínimo e máximo
-- Primeiro quartil (Q1)
-- Terceiro quartil (Q3)
-- Intervalo interquartil (IQR)
-
-### Identificação de outliers
-
-O projeto utiliza a regra do IQR para sinalizar valores fora do comportamento esperado:
-
-```text
-Limite inferior = Q1 - 1,5 × IQR
-Limite superior = Q3 + 1,5 × IQR
-```
-
-Leituras abaixo ou acima desses limites são incluídas no diagnóstico como possíveis anomalias.
-
-### Comparação de referências
-
-Além das leituras da estação, o banco possui valores de pH e temperatura de águas engarrafadas cadastradas como referência. Os gráficos comparativos ajudam a visualizar a posição da água monitorada em relação a essas referências.
-
----
-
-## Tecnologias utilizadas
+## Tecnologias
 
 | Tecnologia | Aplicação no projeto |
 |---|---|
@@ -112,9 +49,11 @@ Além das leituras da estação, o banco possui valores de pH e temperatura de �
 | Pytest | Testes automatizados |
 | Git e GitHub | Versionamento e colaboração |
 
----
 
-## Estrutura do projeto
+
+
+
+## Estrutura de pastas
 
 ```text
 pipeline-monitoramento-ambiental/
@@ -140,70 +79,52 @@ pipeline-monitoramento-ambiental/
 ├── tests/                           # Testes automatizados
 └── reports/                         # Saídas geradas pelo pipeline
 ```
+## Banco de Dados 
 
----
+O projeto utiliza Microsoft SQL Server para persistência dos dados.
+O banco possui tabelas relacionadas ao monitoramento ambiental e às águas utilizadas como referência para comparação.
 
-## Banco de dados
+ ## Script de criação do banco
 
-O banco SQL Server organiza os dados em três tabelas:
-
-| Tabela | Finalidade |
-|---|---|
-| `cliente` | Armazena águas engarrafadas usadas como referência |
-| `projeto` | Armazena os dados da estação de monitoramento |
-| `leitura` | Armazena cada leitura de temperatura e pH |
-
-O relacionamento é:
-
-```text
-cliente -> projeto -> leitura
-```
-
----
-
-## Como executar
-
-### Pré-requisitos
-
-- Python 3
-- SQL Server em execução
-- Driver ODBC para SQL Server
-
-### 1. Instale as dependências
-
-```bash
-pip install -r requirements.txt
-```
-
-### 2. Crie o banco de dados
-
-Execute o arquivo abaixo no SQL Server:
-
-```text
 src/database/script_db.sql
-```
+A comunicação com o banco é realizada através do PyODBC.
 
-### 3. Configure a conexão
+## Análise e Resultados
 
-Revise as configurações de conexão em:
+Após o processamento e persistência dos dados, o projeto realiza análises estatísticas de:
+•	Temperatura 
+•	pH 
+São calculadas medidas como:
+•	Média 
+•	Mediana 
+•	Desvio padrão 
+•	Quartis 
+•	Mínimo e máximo 
+•	Intervalo interquartil (IQR)
 
-```text
-src/database/db_manager.py
-```
+Também é realizada a identificação de possíveis outliers utilizando o método IQR
 
-### 4. Execute o pipeline
+## Arquivos Gerados 
 
-```bash
-python main.py
-```
-
-Após a execução, os gráficos e o arquivo de diagnóstico estarão disponíveis em `reports/`.
-
----
+Os resultados das análises são armazenados na pasta :
+Reports/
+Entre os resultados estão:
+•	Histogramas 
+•	Boxplots 
+•	Gráficos comparativos 
+•	Relatório de diagnóstico em .txt
 
 ## Testes
 
-O projeto possui testes para ingestão, tratamento, validação, transformação e estatísticas.
+O projeto utiliza Pytest para testes automatizados.
+Os testes estão organizados por responsabilidade:
+•	test_api_client.py → testes da comunicação com a API 
+•	test.py → testes da comunicação com a API 
+•	test_statistics.py → testes das análises estatísticas. 
+•	test_transformacao.py → testes das transformações 
+•	test_validacao.py → testes das validações
+
+Para Executar os testes:
 
 ```bash
 # Executa todos os testes
@@ -214,11 +135,72 @@ python -m pytest -s
 
 # Executa apenas os testes de estatística
 python -m pytest tests/test_statistics.py -v
+
+# Executa apenas os testes de transformação
+python -m pytest tests/test_transformacao.py
+
+# Executa apenas os testes de tratamento
+python -m pytest tests/test_tratamento.py
+
+# Executa apenas os testes de tratamento
+python -m pytest tests/test_validacao.py
+
+
 ```
 
-Os testes de estatística cobrem conversão de dados, cálculo das métricas, tratamento de valores nulos, detecção de outliers e geração dos arquivos de gráfico.
+## Como Executar 
 
----
+**1-Clone o repositório:**
+
+git clone https://github.com/Bryan-Anthony/pipeline-monitoramento-ambiental.git
+
+**2-Acesse a pasta:** 
+
+cd pipeline-monitoramento-ambiental
+
+**3-Crie um ambiente virtual:**
+
+python -m venv .venv
+
+**4-Ative o ambiente Virtual:**
+
+Windows:
+.venv\Scripts\activate
+
+Linux/macOS:
+source .venv/bin/activate
+
+**5-Instale as dependências:**
+
+pip install -r requirements.txt
+
+**6-Configure o banco de dados:**
+
+Execute o script:
+
+src/database/script_db.sql
+
+Configure a conexão com o SQL Server conforme o ambiente local.
+
+**7-Execute o pipeline:**
+
+python main.py
+
+ Conceitos aplicados
+O projeto permite aplicar conceitos de:
+•	ETL (Extract, Transform, Load) 
+•	Consumo de APIs 
+•	JSON 
+•	Manipulação de DataFrames 
+•	Tratamento e validação de dados 
+•	Banco de dados relacional 
+•	SQL 
+•	Análise estatística 
+•	Detecção de outliers 
+•	Visualização de dados 
+•	Testes automatizados 
+•	Git e GitHub 
+•	Organização modular de projetos Python
 
 ## Possíveis evoluções
 
@@ -227,3 +209,16 @@ Os testes de estatística cobrem conversão de dados, cálculo das métricas, tr
 - Criar dashboard para visualização dos relatórios
 - Expor os resultados com uma API em FastAPI
 - Mover credenciais e configurações do banco para variáveis de ambiente
+
+##Equipe-Integrantes:
+
+Bryan 
+Felipe
+Geiza
+Janaina
+Nicole
+
+
+
+
+
