@@ -78,7 +78,7 @@ pipeline-monitoramento-ambiental/
 │       └── statistics.py            # Estatísticas e gráficos
 ├── tests/                           # Testes automatizados
 └── reports/                         # Saídas geradas pelo pipeline
-
+```
 ## Banco de Dados 
 
 O projeto utiliza Microsoft SQL Server para persistência dos dados.
@@ -150,24 +150,40 @@ python -m pytest tests/test_validacao.py
 
 ## Como Executar 
 
-1-Clone o repositório
+**1-Clone o repositório:**
+
 git clone https://github.com/Bryan-Anthony/pipeline-monitoramento-ambiental.git
-2-Acesse a pasta 
+
+**2-Acesse a pasta:** 
+
 cd pipeline-monitoramento-ambiental
-3-Crie um ambiente virtual 
+
+**3-Crie um ambiente virtual:**
+
 python -m venv .venv
-4-Ative o ambiente Virtual
+
+**4-Ative o ambiente Virtual:**
+
 Windows:
 .venv\Scripts\activate
+
 Linux/macOS:
 source .venv/bin/activate
-5-Instale as dependências
+
+**5-Instale as dependências:**
+
 pip install -r requirements.txt
-6-Configure o banco de dados
+
+**6-Configure o banco de dados:**
+
 Execute o script:
+
 src/database/script_db.sql
-e configure a conexão com o SQL Server conforme o ambiente local.
-7-Execute o pipeline
+
+Configure a conexão com o SQL Server conforme o ambiente local.
+
+**7-Execute o pipeline:**
+
 python main.py
 
  Conceitos aplicados
