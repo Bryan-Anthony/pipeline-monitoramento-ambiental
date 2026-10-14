@@ -203,6 +203,8 @@ GO
 
 -- ROLLBACK TRANSACTION;
 
--- SELECT * FROM cliente; 
--- SELECT * FROM leitura; 
--- SELECT * FROM projeto; 
+-- SELECT * FROM cliente;
+-- SELECT * FROM leitura;
+-- SELECT * FROM projeto;
+-- SELECT * FROM operador;
+-- SELECT * FROM parametro;
