@@ -1,13 +1,20 @@
 import os
 from datetime import datetime
 
-from src.ingestion.service import IngestionService
+from src.ingestion.api_client import ApiClient
+from src.services.service import IngestionService
 from src.database.repository import MonitoramentoRepository
 from src.config import OUTPUT_DIR
 from src.analytics import statistics
+from src.utils.logger import Logger
 
+
+logger = Logger.configurar()
 
 def main():
+
+    logger.info("Iniciando pipeline de monitoramento ambiental")
+
     # --- 1. Ingestão ---
     service = IngestionService()
     df = service.importar_dados()
