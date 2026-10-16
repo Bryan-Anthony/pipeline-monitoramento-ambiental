@@ -1,210 +1,416 @@
-CREATE DATABASE walter;
+
+-- =========================================================
+-- BANCO DE DADOS: WALTER
+-- SQL Server
+-- Criar estrutura nova
+-- =========================================================
+
+IF DB_ID(N'walter') IS NULL
+BEGIN
+    EXEC(N'CREATE DATABASE walter');
+END;
 GO
 
 USE walter;
 GO
 
-BEGIN TRANSACTION;
+SET XACT_ABORT ON;
+GO
 
+BEGIN TRY
+    BEGIN TRANSACTION;
 
--- TABELA: CLIENTES
-CREATE TABLE cliente (
-    idCliente INT IDENTITY(1,1) PRIMARY KEY,
-    nomeCliente VARCHAR(100) NOT NULL,
-);
+    -- =====================================================
+    -- 1. CLIENTE
+    -- =====================================================
+    CREATE TABLE cliente (
+        idCliente INT IDENTITY(1,1) PRIMARY KEY,
+        nomeCliente VARCHAR(100) NOT NULL UNIQUE
+    );
 
--- TABELA: PROJETOS
-CREATE TABLE projeto (
-    idProjeto INT IDENTITY(1,1) PRIMARY KEY,
-    codigoProjeto INT NOT NULL,
-    nomeProjeto VARCHAR(150) NOT NULL,
-    descricao VARCHAR(255),
-    latitude DECIMAL(9,6),
-    longitude DECIMAL(9,6),
-    createdAd DATETIME DEFAULT GETDATE(),
-    updatedAt DATETIME DEFAULT GETDATE(),
+    -- =====================================================
+    -- 2. PARAMETRO
+    -- =====================================================
+    CREATE TABLE parametro (
+        idParametro INT IDENTITY(1,1) PRIMARY KEY,
+        codigoParametro VARCHAR(30) NOT NULL UNIQUE,
+        nomeParametro VARCHAR(100) NOT NULL,
+        unidadePadrao VARCHAR(30) NOT NULL
+    );
 
-    -- FK: relaciona Projeto com Cliente
-    fkCliente INT NOT NULL,
+    -- =====================================================
+    -- 3. PARAMETRO CLIENTE
+    -- Um valor de referência por cliente e parâmetro.
+    -- =====================================================
+    CREATE TABLE parametroCliente (
+        idParametroCliente INT IDENTITY(1,1) PRIMARY KEY,
+        fkCliente INT NOT NULL,
+        fkParametro INT NOT NULL,
+        valorReferencia DECIMAL(10,2) NOT NULL,
 
-    CONSTRAINT fkProjetosClientes
-        FOREIGN KEY (fkCliente)
-        REFERENCES cliente(idCliente)
-);
+        CONSTRAINT fkParametroClienteCliente
+            FOREIGN KEY (fkCliente)
+            REFERENCES cliente(idCliente),
 
+        CONSTRAINT fkParametroClienteParametro
+            FOREIGN KEY (fkParametro)
+            REFERENCES parametro(idParametro),
 
-CREATE TABLE estacao(
-    idEstacao INT IDENTITY(1,1) PRIMARY KEY,
-    nome VARCHAR(45) NOT NULL,
-    municipio VARCHAR(45) NOT NULL,
-    estado VARCHAR(45) NOT NULL,
+        CONSTRAINT uqParametroCliente
+            UNIQUE (fkCliente, fkParametro)
+    );
 
-    -- FK: se relaciona com Projeto
-    fkProjeto INT NOT NULL
+    -- =====================================================
+    -- 4. PROJETO
+    -- Um projeto pode possuir várias estações.
+    -- Os clientes são associados às estações.
+    -- =====================================================
+    CREATE TABLE projeto (
+        idProjeto INT IDENTITY(1,1) PRIMARY KEY,
+        codigoProjeto VARCHAR(50) NOT NULL UNIQUE,
+        nomeProjeto VARCHAR(150) NOT NULL,
+        descricao VARCHAR(255),
 
-    CONSTRAINT fkEstacaoProjeto
-        FOREIGN KEY(fkProjeto)
-        REFERENCES projeto(idProjeto) 
-);
+        createdAt DATETIME2(0) NOT NULL
+            CONSTRAINT dfProjetoCreatedAt
+            DEFAULT SYSUTCDATETIME(),
 
+        updatedAt DATETIME2(0) NOT NULL
+            CONSTRAINT dfProjetoUpdatedAt
+            DEFAULT SYSUTCDATETIME()
+    );
 
--- TABELA: OPERADORES
-CREATE TABLE operador (
-    idOperador INT IDENTITY(1,1) PRIMARY KEY,
-    nome VARCHAR(100) NOT NULL,
-    cpf VARCHAR(11) NOT NULL UNIQUE,
-    email VARCHAR(245) NOT NULL UNIQUE,
-    senha CHAR(8) NOT NULL,
-    ativo BIT NOT NULL DEFAULT 1,
+    -- =====================================================
+    -- 5. ESTACAO
+    -- Cada estação pertence a um projeto.
+    -- As coordenadas identificam a localização da estação.
+    -- =====================================================
+    CREATE TABLE estacao (
+        idEstacao INT IDENTITY(1,1) PRIMARY KEY,
+        nome VARCHAR(100) NOT NULL,
+        municipio VARCHAR(100) NOT NULL,
+        estado VARCHAR(100) NOT NULL,
+        pais VARCHAR(100) NOT NULL,
 
-    -- FK: se relaciona com Estacao
-    fkEstacao INT NOT NULL,
+        latitude DECIMAL(9,6),
+        longitude DECIMAL(9,6),
 
-    -- FK: se relaciona com Projeto
-    fkProjeto INT NOT NULL,
-    
-    CONSTRAINT fkOperadorEstacao
-        FOREIGN KEY(fkEstacao)
-        REFERENCES estacao(idEstacao),
+        fkProjeto INT NOT NULL,
 
-    CONSTRAINT fkOperadorProjeto
-        FOREIGN KEY(fkProjeto)
-        REFERENCES projeto(idProjeto) 
-);
+        CONSTRAINT fkEstacaoProjeto
+            FOREIGN KEY (fkProjeto)
+            REFERENCES projeto(idProjeto),
 
+        CONSTRAINT ckEstacaoLatitude
+            CHECK (latitude IS NULL OR latitude BETWEEN -90 AND 90),
 
--- TABELA: PARAMETROS
-CREATE TABLE parametro (
-    idParametro INT IDENTITY(1,1) PRIMARY KEY,
-    codigoParametro VARCHAR(30) NOT NULL UNIQUE,
-    nomeParametro VARCHAR(100) NOT NULL,
-    unidadePadrao VARCHAR(20) NOT NULL,
+        CONSTRAINT ckEstacaoLongitude
+            CHECK (longitude IS NULL OR longitude BETWEEN -180 AND 180)
+    );
 
-    -- FK: se relaciona com Estacao
-    fkEstacao INT NOT NULL
-    CONSTRAINT fkParametroEstacao
-        FOREIGN KEY(fkEstacao)
-        REFERENCES estacao(idEstacao),
-);
+    -- =====================================================
+    -- 6. ESTACAO CLIENTE
+    -- Relacionamento muitos para muitos entre estação
+    -- e cliente.
+    -- =====================================================
+    CREATE TABLE estacaoCliente (
+        idEstacaoCliente INT IDENTITY(1,1) PRIMARY KEY,
+        fkEstacao INT NOT NULL,
+        fkCliente INT NOT NULL,
 
+        CONSTRAINT fkEstacaoClienteEstacao
+            FOREIGN KEY (fkEstacao)
+            REFERENCES estacao(idEstacao),
 
--- TABELA: LEITURA
-CREATE TABLE leitura (
-    entry_ID INT IDENTITY(1,1) PRIMARY KEY,
-    entry_id_api INT NOT NULL UNIQUE,
-    dataHora DATETIME NOT NULL,
+        CONSTRAINT fkEstacaoClienteCliente
+            FOREIGN KEY (fkCliente)
+            REFERENCES cliente(idCliente),
 
-    -- Parametros medidos na leitura
-    ph DECIMAL(5,2),
-    temperaturaAgua DECIMAL(5,2),
-    temperaturaAr DECIMAL(5,2),
-    oxigenioDissolvido DECIMAL(10,4),
-    condutividadeEletrica DECIMAL(10,4),
-    turbidezAgua DECIMAL(10,4),
-    
-    -- FK: relaciona Leitura com Projeto
-    idProjeto INT NOT NULL,
+        CONSTRAINT uqEstacaoCliente
+            UNIQUE (fkEstacao, fkCliente)
+    );
 
-    -- FK: relaciona Leitura com Operador
-    idOperador INT NULL,
+    -- =====================================================
+    -- 7. OPERADOR
+    -- A senha deve ser armazenada como hash seguro.
+    -- O operador está associado a uma estação.
+    -- =====================================================
+    CREATE TABLE operador (
+        idOperador INT IDENTITY(1,1) PRIMARY KEY,
+        nome VARCHAR(100) NOT NULL,
+        cpf VARCHAR(11) NOT NULL UNIQUE,
+        email VARCHAR(245) NOT NULL UNIQUE,
+        hashSenha VARCHAR(255) NOT NULL,
 
-    -- FK: se relaciona com Estacao
-    fkEstacao INT NOT NULL,
+        ativo BIT NOT NULL
+            CONSTRAINT dfOperadorAtivo DEFAULT 1,
 
-    CONSTRAINT fkLeiturasProjetos
-        FOREIGN KEY (idProjeto)
-        REFERENCES projeto(idProjeto),
+        fkEstacao INT NOT NULL,
 
-    CONSTRAINT fkLeiturasOperadores
-        FOREIGN KEY (idOperador)
-        REFERENCES operador(idOperador),
+        CONSTRAINT fkOperadorEstacao
+            FOREIGN KEY (fkEstacao)
+            REFERENCES estacao(idEstacao),
 
-    CONSTRAINT fkLeituraEstacao
-        FOREIGN KEY(fkEstacao)
-        REFERENCES estacao(idEstacao),
-);
+        CONSTRAINT ckOperadorCpf
+            CHECK (
+                LEN(cpf) = 11
+                AND cpf NOT LIKE '%[^0-9]%'
+            )
+    );
 
--- INSERÇÕES: CLIENTES
-INSERT INTO cliente (nomeCliente) VALUES
-    ('Vila'),
-    ('Joana'),
-    ('Dalas'),
-    ('Fonte Paraíso'),
-    ('Fonte Mineralba');
+    -- =====================================================
+    -- 8. LEITURA
+    -- Cada leitura pertence a uma estação.
+    -- entry_id_api identifica o registro da API dentro
+    -- da respectiva estação.
+    -- =====================================================
+    CREATE TABLE leitura (
+        entry_ID INT IDENTITY(1,1) PRIMARY KEY,
+        entry_id_api INT NOT NULL,
+        dataHora DATETIME2(0) NOT NULL,
 
+        ph DECIMAL(5,2),
+        temperaturaAgua DECIMAL(5,2),
+        temperaturaAr DECIMAL(5,2),
+        oxigenioDissolvido DECIMAL(10,2),
+        condutividadeEletrica DECIMAL(10,2),
+        turbidezAgua DECIMAL(10,2),
 
--- INSERÇÕES: PROJETO
-INSERT INTO projeto (codigoProjeto, nomeProjeto, descricao, latitude, longitude, createdAd, updatedAt, fkCliente) VALUES
-    ('2412377', 'QMStation1', 'Testes de conectividade e usabilidade para estação remota de monitoramento da qualidade da água', '37.424946', '-79.191969', '2024-01-25T14:16:26Z', '2024-03-18T13:07:02Z', 1);
+        idOperador INT NULL,
+        fkEstacao INT NOT NULL,
 
--- INSERÇÕES: ESTAÇÕES
-INSERT INTO estacao (nome, municipio, estado, fkProjeto) VALUES
-    ('Vila', 'Joinville', 'Santa Catarina', 1),
-    ('Joana', 'A confirmar', 'A confirmar', 1),
-    ('Dalas', 'Parnaguá', 'Piauí', 1),
-    ('Fonte Paraiso', 'Pilar do Sul', 'São Paulo', 1),
-    ('Fonte Mineralba', 'Bauru', 'São Paulo', 1);
+        CONSTRAINT fkLeituraOperador
+            FOREIGN KEY (idOperador)
+            REFERENCES operador(idOperador),
 
--- INSERÇÕES: OPERADORES
-INSERT INTO operador (nome, cpf, email, senha, ativo, fkEstacao, fkProjeto) VALUES
-    ('Operador Vila', '00000000001', 'operador.vila@exemplo.com', 'Vila1234', 1, 1, 1),
-    ('Operador Joana', '00000000002', 'operador.joana@exemplo.com', 'Joana123', 1, 2, 1),
-    ('Operador Dalas', '00000000003', 'operador.dalas@exemplo.com', 'Dalas123', 1, 3, 1),
-    ('Operador Fonte Paraiso', '00000000004', 'operador.paraiso@exemplo.com', 'Fonte123', 1, 4, 1),
-    ('Operador Mineralba', '00000000005', 'operador.mineralba@exemplo.com', 'Miner123', 1, 5, 1);
+        CONSTRAINT fkLeituraEstacao
+            FOREIGN KEY (fkEstacao)
+            REFERENCES estacao(idEstacao),
 
+        CONSTRAINT uqLeituraEstacaoEntry
+            UNIQUE (fkEstacao, entry_id_api)
+    );
 
--- INSERÇÕES: PARAMETROS
-INSERT INTO parametro (codigoParametro, nomeParametro, unidadePadrao, fkEstacao) VALUES
-    -- Estação 1: Vila
-    ('PH_VILA', 'pH', 'adimensional', 1),
-    ('TEMP_AGUA_VILA', 'Temperatura da agua', '°C', 1),
-    ('TEMP_AR_VILA', 'Temperatura do ar', '°C', 1),
-    ('OD_VILA', 'Oxigenio dissolvido', 'mg/L', 1),
-    ('CE_VILA', 'Condutividade eletrica', 'µS/cm', 1),
-    ('TURB_VILA', 'Turbidez da agua', 'NTU', 1),
+    -- Índices para consultas frequentes
+    CREATE INDEX ixLeituraDataHora
+        ON leitura(dataHora);
 
-    -- Estação 2: Joana
-    ('PH_JOANA', 'pH', 'adimensional', 2),
-    ('TEMP_AGUA_JOANA', 'Temperatura da agua', '°C', 2),
-    ('TEMP_AR_JOANA', 'Temperatura do ar', '°C', 2),
-    ('OD_JOANA', 'Oxigenio dissolvido', 'mg/L', 2),
-    ('CE_JOANA', 'Condutividade eletrica', 'µS/cm', 2),
-    ('TURB_JOANA', 'Turbidez da agua', 'NTU', 2),
+    CREATE INDEX ixLeituraEstacaoData
+        ON leitura(fkEstacao, dataHora);
 
-    -- Estação 3: Dalas
-    ('PH_DALAS', 'pH', 'adimensional', 3),
-    ('TEMP_AGUA_DALAS', 'Temperatura da agua', '°C', 3),
-    ('TEMP_AR_DALAS', 'Temperatura do ar', '°C', 3),
-    ('OD_DALAS', 'Oxigenio dissolvido', 'mg/L', 3),
-    ('CE_DALAS', 'Condutividade eletrica', 'µS/cm', 3),
-    ('TURB_DALAS', 'Turbidez da agua', 'NTU', 3),
+    -- =====================================================
+    -- 9. INSERÇÃO DE CLIENTES
+    -- =====================================================
+    INSERT INTO cliente (nomeCliente)
+    VALUES
+        ('Vila'),
+        ('Santa Joana'),
+        ('Dias Dávilas'),
+        ('Fonte Paraíso'),
+        ('Fonte Mineralba');
 
-    -- Estação 4: Fonte Paraiso
-    ('PH_PARAISO', 'pH', 'adimensional', 4),
-    ('TEMP_AGUA_PARAISO', 'Temperatura da agua', '°C', 4),
-    ('TEMP_AR_PARAISO', 'Temperatura do ar', '°C', 4),
-    ('OD_PARAISO', 'Oxigenio dissolvido', 'mg/L', 4),
-    ('CE_PARAISO', 'Condutividade eletrica', 'µS/cm', 4),
-    ('TURB_PARAISO', 'Turbidez da agua', 'NTU', 4),
+    -- =====================================================
+    -- 10. INSERÇÃO DE PARÂMETROS
+    -- =====================================================
+    INSERT INTO parametro
+        (codigoParametro, nomeParametro, unidadePadrao)
+    VALUES
+        ('PH',   'pH',                     'adimensional'),
+        ('TA',   'Temperatura da água',    '°C'),
+        ('TAR',  'Temperatura do ar',      '°C'),
+        ('OD',   'Oxigênio dissolvido',     'mg/L'),
+        ('CE',   'Condutividade elétrica',  'µS/cm'),
+        ('TURB', 'Turbidez da água',        'NTU');
 
-    -- Estação 5: Fonte Mineralba
-    ('PH_MINERALBA', 'pH', 'adimensional', 5),
-    ('TEMP_AGUA_MINERALBA', 'Temperatura da agua', '°C', 5),
-    ('TEMP_AR_MINERALBA', 'Temperatura do ar', '°C', 5),
-    ('OD_MINERALBA', 'Oxigenio dissolvido', 'mg/L', 5),
-    ('CE_MINERALBA', 'Condutividade eletrica', 'µS/cm', 5),
-    ('TURB_MINERALBA', 'Turbidez da agua', 'NTU', 5);
+    -- =====================================================
+    -- 11. VALORES DE REFERÊNCIA POR CLIENTE
+    -- =====================================================
+    INSERT INTO parametroCliente
+        (fkCliente, fkParametro, valorReferencia)
+    SELECT
+        c.idCliente,
+        p.idParametro,
+        v.valorReferencia
+    FROM (
+        VALUES
+            ('Vila',            'PH',    5.87),
+            ('Vila',            'TA',   28.30),
+            ('Vila',            'TAR',  25.00),
+            ('Vila',            'OD',  111.16),
+            ('Vila',            'CE',  121.30),
+            ('Vila',            'TURB',  0.50),
 
+            ('Santa Joana',     'PH',    5.10),
+            ('Santa Joana',     'TA',   28.50),
+            ('Santa Joana',     'TAR',  25.00),
+            ('Santa Joana',     'OD',  111.16),
+            ('Santa Joana',     'CE',  121.30),
+            ('Santa Joana',     'TURB',  0.50),
 
-COMMIT TRANSACTION;
+            ('Dias Dávilas',    'PH',    4.48),
+            ('Dias Dávilas',    'TA',   27.90),
+            ('Dias Dávilas',    'TAR',  25.00),
+            ('Dias Dávilas',    'OD',   87.88),
+            ('Dias Dávilas',    'CE',  122.40),
+            ('Dias Dávilas',    'TURB',  0.30),
+
+            ('Fonte Paraíso',   'PH',    7.00),
+            ('Fonte Paraíso',   'TA',   24.60),
+            ('Fonte Paraíso',   'TAR',  25.00),
+            ('Fonte Paraíso',   'OD',  112.16),
+            ('Fonte Paraíso',   'CE',  134.30),
+            ('Fonte Paraíso',   'TURB',  0.50),
+
+            ('Fonte Mineralba', 'PH',    7.00),
+            ('Fonte Mineralba', 'TA',   26.20),
+            ('Fonte Mineralba', 'TAR',  28.00),
+            ('Fonte Mineralba', 'OD',  115.16),
+            ('Fonte Mineralba', 'CE',  131.30),
+            ('Fonte Mineralba', 'TURB',  0.50)
+    ) AS v(nomeCliente, codigoParametro, valorReferencia)
+    INNER JOIN cliente AS c
+        ON c.nomeCliente = v.nomeCliente
+    INNER JOIN parametro AS p
+        ON p.codigoParametro = v.codigoParametro;
+
+    -- =====================================================
+    -- 12. INSERÇÃO DO PROJETO
+    -- Datas de origem fornecidas em UTC.
+    -- =====================================================
+    INSERT INTO projeto (
+        codigoProjeto,
+        nomeProjeto,
+        descricao,
+        createdAt,
+        updatedAt
+    )
+    VALUES (
+        '2412377',
+        'WQMStation1',
+        'Testes de conectividade e usabilidade para estação remota de monitoramento da qualidade da água',
+        '2024-01-25T14:16:26',
+        '2024-03-18T13:07:02'
+    );
+
+    -- =====================================================
+    -- 13. INSERÇÃO DA ESTAÇÃO
+    -- Coordenadas da estação informada pela API.
+    -- =====================================================
+    INSERT INTO estacao (
+        nome,
+        municipio,
+        estado,
+        pais,
+        latitude,
+        longitude,
+        fkProjeto
+    )
+    VALUES (
+        'Oakwood',
+        'Lynchburg',
+        'Virgínia (Virginia)',
+        'Estados Unidos',
+        37.424946,
+        -79.191969,
+        (
+            SELECT idProjeto
+            FROM projeto
+            WHERE codigoProjeto = '2412377'
+        )
+    );
+
+    -- =====================================================
+    -- 14. ASSOCIAR A ESTAÇÃO AOS CINCO CLIENTES
+    -- =====================================================
+    INSERT INTO estacaoCliente (
+        fkEstacao,
+        fkCliente
+    )
+    SELECT
+        e.idEstacao,
+        c.idCliente
+    FROM estacao AS e
+    CROSS JOIN cliente AS c
+    WHERE e.nome = 'Oakwood'
+      AND e.fkProjeto = (
+          SELECT p.idProjeto
+          FROM projeto AS p
+          WHERE p.codigoProjeto = '2412377'
+      )
+      AND c.nomeCliente IN (
+          'Vila',
+          'Santa Joana',
+          'Dias Dávilas',
+          'Fonte Paraíso',
+          'Fonte Mineralba'
+      );
+
+    -- =====================================================
+    -- 15. OPERADOR
+    -- A inserção fica a cargo da aplicação após gerar
+    -- o hash da senha.
+    --
+    -- Exemplo de estrutura:
+    --
+    -- INSERT INTO operador
+    --     (nome, cpf, email, hashSenha, fkEstacao)
+    -- VALUES
+    --     ('José da Silva', '37362584024',
+    --      '<HASH_SEGURO_GERADO_NA_APLICACAO>',
+    --      (SELECT idEstacao
+    --       FROM estacao
+    --       WHERE nome = 'Oakwood'
+    --         AND fkProjeto = (
+    --             SELECT idProjeto
+    --             FROM projeto
+    --             WHERE codigoProjeto = '2412377'
+    --         )));
+    --
+    -- Não armazene a senha original em hashSenha.
+    -- =====================================================
+
+    COMMIT TRANSACTION;
+
+    PRINT 'Banco e dados iniciais criados com sucesso.';
+
+END TRY
+BEGIN CATCH
+    IF XACT_STATE() <> 0
+        ROLLBACK TRANSACTION;
+
+    THROW;
+END CATCH;
 GO
 
 
--- ROLLBACK TRANSACTION;
+-- =========================================================
+-- 16. CONSULTAS PARA CONFERIR A ESTRUTURA E OS DADOS
+-- =========================================================
+SELECT * FROM cliente;
+SELECT * FROM parametro;
+SELECT * FROM parametroCliente;
+SELECT * FROM projeto;
+SELECT * FROM estacao;
+SELECT * FROM estacaoCliente;
+SELECT * FROM operador;
+SELECT * FROM leitura;
+GO
 
--- SELECT * FROM cliente;
--- SELECT * FROM leitura;
--- SELECT * FROM projeto;
--- SELECT * FROM operador;
--- SELECT * FROM parametro;
+-- Conferir os cinco clientes associados à estação
+
+SELECT
+    e.idEstacao,
+    e.nome AS estacao,
+    p.codigoProjeto,
+    c.idCliente,
+    c.nomeCliente
+FROM estacaoCliente AS ec
+INNER JOIN estacao AS e
+    ON e.idEstacao = ec.fkEstacao
+INNER JOIN cliente AS c
+    ON c.idCliente = ec.fkCliente
+INNER JOIN projeto AS p
+    ON p.idProjeto = e.fkProjeto
+WHERE p.codigoProjeto = '2412377'
+ORDER BY c.nomeCliente;
+GO
