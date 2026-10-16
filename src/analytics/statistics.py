@@ -166,71 +166,135 @@ def gerar_grafico_linha(df, coluna, nome_arquivo):
     return caminho
 
 
-def gerar_grafico_comparacao(df_leituras, df_clientes,
-                             nome_arquivo_ph="comparacao_ph.png",
-                             nome_arquivo_temp="comparacao_temperatura.png"):
+def gerar_grafico_comparacao(
+    df_leituras,
+    df_clientes,
+    nome_arquivo_ph="comparacao_ph.png",
+    nome_arquivo_temp="comparacao_temperatura.png"
+):
     """
-    Gera dois gráficos comparativos separados:
-    - comparacao_ph.png: comparação de pH entre água monitorada e engarrafadas
-    - comparacao_temperatura.png: comparação de temperatura entre as mesmas fontes
+    Gera gráficos comparativos de pH e temperatura
+    entre a água monitorada e as águas engarrafadas.
+    """
 
-    A água monitorada é representada pela média das leituras do banco.
-    Salva os dois arquivos em OUTPUT_DIR.
-    Também imprime a tabela comparativa no terminal.
-    Retorna o caminho do gráfico de pH e o DataFrame comparativo.
-    """
     os.makedirs(OUTPUT_DIR, exist_ok=True)
 
-    # Calcula a média dos dados da API para representar a água monitorada
+    # Calcula a média das leituras da água monitorada
     media_leituras = {
         "nome": "Monitorada (API)",
-        "ph": round(pd.to_numeric(df_leituras["ph"], errors="coerce").mean(), 2),
-        "temperatura": round(pd.to_numeric(df_leituras["temperatura"], errors="coerce").mean(), 2),
+        "ph": round(
+            pd.to_numeric(
+                df_leituras["ph"], errors="coerce"
+            ).mean(), 2
+        ),
+        "temperatura": round(
+            pd.to_numeric(
+                df_leituras["temperatura"], errors="coerce"
+            ).mean(), 2
+        ),
     }
 
-    # Garante que ph e temperatura dos clientes são numéricos
+    # Copia os dados dos clientes
     df_clientes = df_clientes.copy()
-    df_clientes["ph"] = pd.to_numeric(df_clientes["ph"], errors="coerce")
-    df_clientes["temperatura"] = pd.to_numeric(df_clientes["temperatura"], errors="coerce")
 
-    # Monta um DataFrame unificado com a água monitorada + águas engarrafadas
+    # Padroniza a coluna de nomes
+    if "nomeCliente" in df_clientes.columns:
+        df_clientes["nome"] = df_clientes["nomeCliente"].fillna(
+            "Cliente sem nome"
+        ).astype(str)
+    elif "nome" in df_clientes.columns:
+        df_clientes["nome"] = df_clientes["nome"].fillna(
+            "Cliente sem nome"
+        ).astype(str)
+    else:
+        raise ValueError(
+            "O DataFrame de clientes precisa ter a coluna "
+            "'nomeCliente' ou 'nome'."
+        )
+
+    # Converte as colunas para valores numéricos
+    df_clientes["ph"] = pd.to_numeric(
+        df_clientes["ph"], errors="coerce"
+    )
+    df_clientes["temperatura"] = pd.to_numeric(
+        df_clientes["temperatura"], errors="coerce"
+    )
+
+    # Mantém somente as colunas necessárias para a comparação
+    df_clientes = df_clientes[
+        ["nome", "ph", "temperatura"]
+    ]
+
+    # Junta a água monitorada com as águas engarrafadas
     df_monitorada = pd.DataFrame([media_leituras])
-    df_comparacao = pd.concat([df_monitorada, df_clientes], ignore_index=True)
 
-    # Exibe a tabela comparativa diretamente no terminal
-    print("\n Comparação: Água Monitorada vs. Águas Engarrafadas")
+    df_comparacao = pd.concat(
+        [df_monitorada, df_clientes],
+        ignore_index=True
+    )
+
+    # Garante que os nomes sejam textos
+    df_comparacao["nome"] = (
+        df_comparacao["nome"]
+        .fillna("Fonte sem nome")
+        .astype(str)
+    )
+
+    # Exibe a tabela comparativa
+    print("\nComparação: Água Monitorada vs. Águas Engarrafadas")
     print(df_comparacao.to_string(index=False))
 
-    nomes = df_comparacao["nome"]
-    valores_ph = df_comparacao["ph"]
-    valores_temp = df_comparacao["temperatura"]
+    # Dados dos gráficos
+    nomes = df_comparacao["nome"].tolist()
+    valores_ph = df_comparacao["ph"].tolist()
+    valores_temp = df_comparacao["temperatura"].tolist()
 
-    # Define cores: destaca a água monitorada em azul e as demais em cinza
-    cores = ["steelblue" if n == "Monitorada (API)" else "lightgray" for n in nomes]
+    # Destaca a água monitorada em azul
+    cores = [
+        "steelblue" if nome == "Monitorada (API)"
+        else "lightgray"
+        for nome in nomes
+    ]
 
-    # --- Gráfico 1: Comparação de pH (arquivo separado) ---
-    plt.figure(figsize=(8, 5))
-    plt.bar(nomes, valores_ph, color=cores, edgecolor="black")
+    # Gráfico de pH
+    plt.figure(figsize=(10, 5))
+    plt.bar(
+        nomes,
+        valores_ph,
+        color=cores,
+        edgecolor="black"
+    )
     plt.title("Comparação de pH")
     plt.xlabel("Fonte")
     plt.ylabel("pH")
-    plt.xticks(rotation=30)
+    plt.xticks(rotation=30, ha="right")
     plt.grid(axis="y", linestyle="--", alpha=0.5)
     plt.tight_layout()
-    caminho_ph = os.path.join(OUTPUT_DIR, nome_arquivo_ph)
+
+    caminho_ph = os.path.join(
+        OUTPUT_DIR, nome_arquivo_ph
+    )
     plt.savefig(caminho_ph)
     plt.close()
 
-    # --- Gráfico 2: Comparação de Temperatura (arquivo separado) ---
-    plt.figure(figsize=(8, 5))
-    plt.bar(nomes, valores_temp, color=cores, edgecolor="black")
+    # Gráfico de temperatura
+    plt.figure(figsize=(10, 5))
+    plt.bar(
+        nomes,
+        valores_temp,
+        color=cores,
+        edgecolor="black"
+    )
     plt.title("Comparação de Temperatura")
     plt.xlabel("Fonte")
     plt.ylabel("Temperatura (°C)")
-    plt.xticks(rotation=30)
+    plt.xticks(rotation=30, ha="right")
     plt.grid(axis="y", linestyle="--", alpha=0.5)
     plt.tight_layout()
-    caminho_temp = os.path.join(OUTPUT_DIR, nome_arquivo_temp)
+
+    caminho_temp = os.path.join(
+        OUTPUT_DIR, nome_arquivo_temp
+    )
     plt.savefig(caminho_temp)
     plt.close()
 

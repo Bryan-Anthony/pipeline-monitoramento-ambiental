@@ -165,21 +165,74 @@ class MonitoramentoRepository:
 
         try:
             sql = """
-            SELECT
+             SELECT
+                -- Dados da estação
                 e.idEstacao,
                 e.nome AS estacao,
+
+                -- Dados do projeto
+                p.codigoProjeto,
+
+                -- Dados do cliente
+                c.idCliente,
+                c.nomeCliente,
+
+                -- Valores de referência do cliente
+                MAX(CASE
+                    WHEN pc.fkParametro = 1
+                    THEN pc.valorReferencia
+                END) AS ph,
+
+                MAX(CASE
+                    WHEN pc.fkParametro = 2
+                    THEN pc.valorReferencia
+                END) AS temperatura,
+
+                MAX(CASE
+                    WHEN pc.fkParametro = 3
+                    THEN pc.valorReferencia
+                END) AS temperaturaAr,
+
+                MAX(CASE
+                    WHEN pc.fkParametro = 4
+                    THEN pc.valorReferencia
+                END) AS oxigenioDissolvido,
+
+                MAX(CASE
+                    WHEN pc.fkParametro = 5
+                    THEN pc.valorReferencia
+                END) AS condutividadeEletrica,
+
+                MAX(CASE
+                    WHEN pc.fkParametro = 6
+                    THEN pc.valorReferencia
+                END) AS turbidez
+
+            FROM dbo.estacaoCliente AS ec
+
+            INNER JOIN dbo.estacao AS e
+                ON e.idEstacao = ec.fkEstacao
+
+            INNER JOIN dbo.cliente AS c
+                ON c.idCliente = ec.fkCliente
+
+            INNER JOIN dbo.projeto AS p
+                ON p.idProjeto = e.fkProjeto
+
+            LEFT JOIN dbo.parametroCliente AS pc
+                ON pc.fkCliente = c.idCliente
+
+            WHERE p.codigoProjeto = '2412377'
+
+            GROUP BY
+                e.idEstacao,
+                e.nome,
                 p.codigoProjeto,
                 c.idCliente,
                 c.nomeCliente
-            FROM dbo.estacaoCliente AS ec
-            INNER JOIN dbo.estacao AS e
-                ON e.idEstacao = ec.fkEstacao
-            INNER JOIN dbo.cliente AS c
-                ON c.idCliente = ec.fkCliente
-            INNER JOIN dbo.projeto AS p
-                ON p.idProjeto = e.fkProjeto
-            WHERE p.codigoProjeto = '2412377'
-            ORDER BY c.nomeCliente
+
+            ORDER BY
+                c.nomeCliente;
         """
 
             # Lê o resultado direto para um DataFrame usando pandas
