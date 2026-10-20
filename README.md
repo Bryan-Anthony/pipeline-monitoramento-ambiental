@@ -94,7 +94,7 @@ pipeline-monitoramento-ambiental/
 │   └── analytics/
 │       └── statistics.py            # Estatísticas e gráficos
 ├── tests/                           # Testes automatizados
-└── reports/                         # Saídas geradas pelo pipeline
+└── rclseports/                         # Saídas geradas pelo pipeline
 ```
 
 ---
