@@ -1,13 +1,20 @@
 import os
 from datetime import datetime
 
-from src.ingestion.service import IngestionService
+from src.ingestion.api_client import ApiClient
+from src.services.service import IngestionService
 from src.database.repository import MonitoramentoRepository
 from src.config import OUTPUT_DIR
 from src.analytics import statistics
+from src.utils.logger import Logger
 
+
+logger = Logger.configurar()
 
 def main():
+
+    logger.info("Iniciando pipeline de monitoramento ambiental")
+
     # --- 1. Ingestão ---
     service = IngestionService()
     df = service.importar_dados()
@@ -29,6 +36,12 @@ def main():
     # Águas engarrafadas cadastradas como referência de comparação
     df_clientes = repository.buscar_clientes()
 
+    print("\nColunas dos clientes:")
+    print(df_clientes.columns.tolist())
+
+    print("\nDados dos clientes:")
+    print(df_clientes.head())
+
     # --- 4. Análise estatística sobre as leituras do banco ---
     estatisticas = statistics.calcular_estatisticas(df_leituras)
     outliers = statistics.resumir_outliers(df_leituras)
@@ -37,6 +50,15 @@ def main():
     # Limpa arquivos antigos antes de gerar os novos
     statistics.limpar_reports()
     os.makedirs(OUTPUT_DIR, exist_ok=True)
+
+    df_leituras = df_leituras.rename(columns={
+        "dataHora": "data_hora",
+        "temperaturaAgua": "temperatura",
+        "temperaturaAr": "temperatura_ar",
+        "oxigenioDissolvido": "oxigenio_dissolvido",
+        "condutividadeEletrica": "condutividade",
+        "turbidezAgua": "turbidez"
+    })
 
     # Histogramas: distribuição de frequência de temperatura e pH
     caminho_hist_temp = statistics.gerar_histograma(df_leituras, "temperatura", "histograma_temperatura.png")
