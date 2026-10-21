@@ -3,10 +3,12 @@ import glob
 
 import pandas as pd
 import matplotlib.pyplot as plt
+from src.utils.logger import Logger
 
 # OUTPUT_DIR vem de config.py para manter uma única fonte de verdade
 from src.config import OUTPUT_DIR
 
+logger = Logger.configurar()
 
 def limpar_reports():
     """
