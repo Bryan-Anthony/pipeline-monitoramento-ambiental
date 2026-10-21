@@ -7,11 +7,32 @@ from src.database.repository import MonitoramentoRepository
 from src.config import OUTPUT_DIR
 from src.analytics import statistics
 from src.utils.logger import Logger
+from src.operadors.cadastro import CadastroOperador
 
 
 logger = Logger.configurar()
 
 def main():
+
+    cadastro = CadastroOperador()
+    cadastro.cadastrar()
+    logger.info("Iniciando cadastro do operador")
+    while True:
+        print("\n=== SISTEMA DE MONITORAMENTO AMBIENTAL ===")
+        print("1 - Cadastrar operador")
+        print("0 - Sair")
+
+        opcao = input("Escolha uma opção: ").strip()
+
+        if opcao == "1":
+            cadastro.cadastrar()
+
+        elif opcao == "0":
+            print("Encerrando o sistema.")
+            break
+
+        else:
+            print("Opção inválida.")
 
     logger.info("Iniciando pipeline de monitoramento ambiental")
 

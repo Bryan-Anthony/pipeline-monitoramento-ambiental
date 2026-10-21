@@ -1,17 +1,136 @@
 from src.database.db_manager import DatabaseManager
 import pandas as pd
+from src.utils.logger import Logger
 
 
 class MonitoramentoRepository:
 
+    logger = Logger.configurar()
+
     def __init__(self):
         self.db = DatabaseManager()
+    logger.info("Select na tabela estação.")
+    def listar_estacoes(self, codigo_projeto):
+        conexao = None
+        cursor = None
+
+        try:
+            conexao = self.db.conectar()
+            cursor = conexao.cursor()
+
+            sql = """
+                SELECT
+                    e.idEstacao,
+                    e.nome
+                FROM dbo.estacao AS e
+                INNER JOIN dbo.projeto AS p
+                    ON p.idProjeto = e.fkProjeto
+                WHERE p.codigoProjeto = ?
+                ORDER BY e.nome
+            """
+
+            cursor.execute(sql, codigo_projeto)
+
+            return [
+                {
+                    "idEstacao": linha[0],
+                    "nome": linha[1]
+                }
+                for linha in cursor.fetchall()
+            ]
+
+        except Exception:
+            self.logger.exception(
+                "Erro ao consultar estações do projeto."
+            )
+            raise
+
+        finally:
+            if cursor:
+                cursor.close()
+
+            if conexao:
+                self.db.fechar(conexao)
+
+    def inserir_operador(self, operador, id_estacao, codigo_projeto):
+        conexao = None
+        cursor = None
+        self.logger.info("Inserindo operadores no banco.")
+        try:
+            conexao = self.db.conectar()
+            cursor = conexao.cursor()
+
+            # Confirma que a estação pertence ao projeto selecionado
+            sql_validacao = """
+                SELECT e.idEstacao
+                FROM dbo.estacao AS e
+                INNER JOIN dbo.projeto AS p
+                    ON p.idProjeto = e.fkProjeto
+                WHERE e.idEstacao = ?
+                  AND p.codigoProjeto = ?
+            """
+
+            cursor.execute(
+                sql_validacao,
+                id_estacao,
+                codigo_projeto
+            )
+
+            if cursor.fetchone() is None:
+                raise ValueError(
+                    "A estação selecionada não pertence "
+                    "ao projeto informado."
+                )
+
+            sql_insert = """
+                INSERT INTO dbo.operador (
+                    nome,
+                    cpf,
+                    email,
+                    hashSenha,
+                    fkEstacao
+                )
+                VALUES (?, ?, ?, ?, ?)
+            """
+
+            cursor.execute(
+                sql_insert,
+                operador.nome,
+                operador.cpf,
+                operador.email,
+                operador.senha,
+                id_estacao
+            )
+
+            conexao.commit()
+
+            self.logger.info(
+                "Operador cadastrado na estação ID %s.",
+                id_estacao
+            )
+
+        except Exception:
+            if conexao:
+                conexao.rollback()
+
+            self.logger.exception(
+                "Erro ao cadastrar operador."
+            )
+            raise
+
+        finally:
+            if cursor:
+                cursor.close()
+
+            if conexao:
+                self.db.fechar(conexao)
+
 
     def inserir_dados(self, df, id_projeto):
 
         conexao = self.db.conectar()
         cursor = None
-
+        self.logger.info("Inserindo dados na tabela leitura.")
         try:
             cursor = conexao.cursor()
 
@@ -125,7 +244,7 @@ class MonitoramentoRepository:
         Retorna um DataFrame com as colunas: data_hora, temperatura, ph.
         """
         conexao = self.db.conectar()
-
+        self.logger.info("Select na tabela leitura.")
         try:
             sql = """
                 SELECT
@@ -162,7 +281,7 @@ class MonitoramentoRepository:
         Retorna um DataFrame com as colunas: nome, ph, temperatura.
         """
         conexao = self.db.conectar()
-
+        self.logger.info("Select na tabela cliente.")
         try:
             sql = """
              SELECT
