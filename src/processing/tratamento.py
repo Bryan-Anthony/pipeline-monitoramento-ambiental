@@ -60,10 +60,20 @@ def tratar_dados(df):
     logger.info(f"Colunas faltantes: {faltantes}")
     logger.info("Convertendo as medições para números.")
 
+    df["data_hora"] = pd.to_datetime(
+            df["data_hora"],
+            errors="coerce",
+            utc=True
+        )
+    
+        # Remover timezone para compatibilidade com SQL Server.
+    df["data_hora"] = df["data_hora"].dt.tz_localize(None)
+    
+    logger.info("Conversão da coluna data_hora concluída.")
+
     # Converte as medições para números.
     colunas_numericas = [
         "entry_id_api",
-        "data_hora",
         "temperatura",
         "condutividade",
         "temperatura_do_ar",
@@ -84,12 +94,6 @@ def tratar_dados(df):
         logger.info(f"Convertendo a coluna '{coluna}' para números.")
         # -9999 representa valor inválido/ausente
         df.loc[df[coluna] == -9999, coluna] = None
-
-        # Garantir que a data seja datetime
-        df["data_hora"] = pd.to_datetime(
-            df["data_hora"],
-            errors="coerce"
-        )
 
         logger.info(f"Conversão da coluna '{coluna}' para números concluída.")
         logger.info("Conversão da coluna 'data_hora' para datetime concluída.")
