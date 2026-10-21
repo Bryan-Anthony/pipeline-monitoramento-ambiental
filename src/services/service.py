@@ -9,28 +9,58 @@ from pathlib import Path
 from src.processing.tratamento import tratar_dados
 from src.processing.validacao import validar_dados
 from src.processing.transformacao import transformar_dados
-
+from src.utils.logger import Logger
 
 class IngestionService:
 
+    logger = Logger.configurar()
+
+    logger.info("Chamada da api da class ApiClient.")
+
     def __init__(self):
         self.api_client = ApiClient()
-    
+
+    logger.info("Função de conversão de data.")
     # Converter string para datetime
     def converter_datetime(self, valor):
-        if not valor:
+        if valor is None or pd.isna(valor) or valor == "":
             return None
 
-        data = datetime.fromisoformat(
-            valor.replace("Z", "+00:00")
-        )
-    # Remove o timezone para compatibilidade com SQL Server DATETIME
-        return data.replace(tzinfo=None)
+        try:
+            # Se já for uma data do pandas ou datetime
+            if isinstance(valor, (pd.Timestamp, datetime)):
+                data = pd.Timestamp(valor)
+                print(f"{data}" + "aqui !")
+
+            # Se vier como texto ISO 8601 da API
+            elif isinstance(valor, str):
+                data = pd.to_datetime(
+                    valor,
+                    errors="raise",
+                    utc=True
+                )
+
+            else:
+                raise ValueError(
+                    f"Formato de data não suportado: {valor!r}"
+                )
+
+            # Remove o timezone para compatibilidade com SQL Server
+
+            print(f"{data.tz_localize(None) if data.tzinfo else data}" + "Aqui!")
+            return data.tz_localize(None) if data.tzinfo else data
+
+        except (ValueError, TypeError) as erro:
+            raise ValueError(
+                f"Não foi possível converter a data {valor!r}: {erro}"
+            ) from erro
 
     def importar_dados(self):
 
         # 1. Buscar dados da API
         dados = self.api_client.get_dados()
+
+        self.logger.info("Verificação do contrato da api.")
 
         # 2. Verificar o Data Contract
         try:
@@ -42,6 +72,7 @@ class IngestionService:
                 f"A resposta da API não atende ao Data Contract: {erro}"
             ) from erro
 
+        self.logger.info("Verificar se a resposta possui channel.")
         # 3. Verificar se a resposta possui channel
         if not dados or "channel" not in dados:
             raise ValueError(
@@ -61,7 +92,7 @@ class IngestionService:
         }
         print(cabecalho)
         
-
+        self.logger.info("Verificar se a resposta possui feeds.")
         # 2.1 Verificar se a resposta possui feeds
         if not dados or "feeds" not in dados:
             raise ValueError(
@@ -69,7 +100,7 @@ class IngestionService:
             )
 
         feeds = dados["feeds"]
-
+        self.logger.info("Selecionar somente os campos necessários.")
         # 3. Selecionar somente os campos necessários
         dados_tratados = []
         # Selecionar somente os registros únicos
@@ -98,11 +129,12 @@ class IngestionService:
             }
 
             dados_tratados.append(item)
-      
+        self.logger.info("Criação do DataFrame.")
 
         # 4. Criar DataFrame
         df = pd.DataFrame(dados_tratados)
 
+        self.logger.info("Salvar os dados brutos no CSV (Bronze).")
         # 5. Salvar os dados brutos no CSV (Bronze)
         pasta_csv = Path.cwd() / "data" / "bronze"
         pasta_csv.mkdir(parents=True, exist_ok=True)
@@ -118,7 +150,9 @@ class IngestionService:
         print(f"CSV salvo em: {arquivo_csv}")
         print(f"Registros salvos: {len(df)}")
 
+        self.logger.info("Leitura do csv.")
         # 6. Ler os dados novamente do CSV
+        df.to_csv(arquivo_csv, index=False, encoding="utf-8")
         df = pd.read_csv(arquivo_csv, encoding="utf-8")
 
         # 7. Converter data/hora para o formato utilizado pelo projeto
@@ -126,6 +160,7 @@ class IngestionService:
             self.converter_datetime
         )
 
+        self.logger.info("Processo de tratamento, validação transformação dos dados.")
         # 8. Tratamento
         df = tratar_dados(df)
 
@@ -135,7 +170,7 @@ class IngestionService:
 
         # 10. Transformação
         df = transformar_dados(df)
-
+        self.logger.info("Valores já transformados.")
         print("\nTipos DEPOIS da transformação:")
         print(df.dtypes)
 
