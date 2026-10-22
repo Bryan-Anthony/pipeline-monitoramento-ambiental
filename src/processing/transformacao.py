@@ -1,5 +1,6 @@
+
 import pandas as pd
-from decimal import Decimal
+
 from src.utils.logger import Logger
 
 logger = Logger.configurar()

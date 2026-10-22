@@ -1,386 +1,299 @@
-import os
+"""
+Análise estatística das leituras de qualidade da água.
+
+Gera:
+1. Estatísticas e outliers por parâmetro
+2. 1 boxplot e 1 histograma para cada parâmetro
+3. Comparação com os clientes (só parâmetros que existem na tabela cliente)
+4. Correlação entre todos os parâmetros
+"""
 import glob
+import logging
+import os
 
+import matplotlib
 import pandas as pd
-import matplotlib.pyplot as plt
-from src.utils.logger import Logger
 
-# OUTPUT_DIR vem de config.py para manter uma única fonte de verdade
+matplotlib.use("Agg")  # gera PNG sem abrir janela
+import matplotlib.pyplot as plt
+
 from src.config import OUTPUT_DIR
 
-logger = Logger.configurar()
+logger = logging.getLogger(__name__)
+
+# nome no banco -> (nome na análise, rótulo, unidade)
+PARAMETROS_INFO = {
+    "temperaturaAgua": ("temperatura", "Temperatura da água", "°C"),
+    "temperaturaAr": ("temperatura_ar", "Temperatura do ar", "°C"),
+    "ph": ("ph", "pH", ""),
+    "oxigenioDissolvido": ("oxigenio_dissolvido", "Oxigênio dissolvido", "mg/L"),
+    "condutividadeEletrica": ("condutividade", "Condutividade elétrica", "µS/cm"),
+    "turbidezAgua": ("turbidez", "Turbidez", "NTU"),
+}
+
+MAPA_COLUNAS = {"dataHora": "data_hora"}
+MAPA_COLUNAS.update({k: v[0] for k, v in PARAMETROS_INFO.items()})
+
+PARAMETROS = [v[0] for v in PARAMETROS_INFO.values()]
+ROTULOS = {v[0]: f"{v[1]} ({v[2]})" if v[2] else v[1] for v in PARAMETROS_INFO.values()}
+
+
+def rotulo(coluna):
+    """Ex: 'turbidez' -> 'Turbidez (NTU)'."""
+    return ROTULOS.get(coluna, coluna)
+
+
+# ------------------------------------------------------------------ dados
 
 def limpar_reports():
-    """
-    Remove todos os arquivos da pasta reports/ antes de gerar novos.
-    Evita acúmulo de arquivos de execuções anteriores.
-    A pasta em si é mantida; apenas o conteúdo é apagado.
-    """
-    if not os.path.exists(OUTPUT_DIR):
-        # Pasta ainda não existe, nada a limpar
-        return
-
-    # Lista todos os arquivos dentro de reports/ (não entra em subpastas)
-    arquivos = glob.glob(os.path.join(OUTPUT_DIR, "*"))
-
-    for arquivo in arquivos:
+    """Apaga os arquivos da pasta reports/ antes de gerar novos."""
+    for arquivo in glob.glob(os.path.join(OUTPUT_DIR, "*")):
         if os.path.isfile(arquivo):
             os.remove(arquivo)
 
-    print(f" Pasta '{OUTPUT_DIR}/' limpa. {len(arquivos)} arquivo(s) removido(s).")
-
 
 def preparar_dados(df):
-    """
-    Prepara o DataFrame para análise:
-    - Converte 'data_hora' para datetime
-    - Converte 'temperatura' e 'ph' para numérico
-    - Retorna uma cópia do DataFrame original sem alterar o original
-    """
+    """Renomeia as colunas do banco e converte os parâmetros para número."""
     if df.empty:
         raise ValueError("O DataFrame está vazio.")
 
-    df = df.copy()
-
+    df = df.rename(columns={a: n for a, n in MAPA_COLUNAS.items()
+                            if a in df.columns and n not in df.columns})
     if "data_hora" in df.columns:
         df["data_hora"] = pd.to_datetime(df["data_hora"], errors="coerce")
 
-    if "temperatura" in df.columns:
-        df["temperatura"] = pd.to_numeric(df["temperatura"], errors="coerce")
-
-    if "ph" in df.columns:
-        df["ph"] = pd.to_numeric(df["ph"], errors="coerce")
-
+    for coluna in PARAMETROS:
+        if coluna in df.columns:
+            df[coluna] = pd.to_numeric(df[coluna], errors="coerce")
     return df
 
 
+def _com_dados(df):
+    """Parâmetros que existem no DataFrame e têm ao menos 1 valor."""
+    return [c for c in PARAMETROS if c in df.columns and df[c].notna().any()]
+
+
+# ------------------------------------------------------------ estatísticas
+
 def calcular_estatisticas(df):
-    """
-    Calcula estatísticas básicas de temperatura e pH:
-    média, mediana, desvio padrão, quartis (Q1, Q3), IQR, mínimo e máximo.
-    Retorna um dicionário com os resultados por coluna.
-    """
+    """Média, mediana, desvio, quartis, IQR, mínimo e máximo por parâmetro."""
     df = preparar_dados(df)
     resultado = {}
-
-    for coluna in ["temperatura", "ph"]:
-        if coluna in df.columns:
-            serie = df[coluna].dropna()
-
-            if not serie.empty:
-                q1 = serie.quantile(0.25)
-                q3 = serie.quantile(0.75)
-                iqr = q3 - q1
-
-                resultado[coluna] = {
-                    "media": round(serie.mean(), 2),
-                    "mediana": round(serie.median(), 2),
-                    "desvio_padrao": round(serie.std(), 2),
-                    "q1": round(q1, 2),
-                    "q3": round(q3, 2),
-                    "iqr": round(iqr, 2),
-                    "minimo": round(serie.min(), 2),
-                    "maximo": round(serie.max(), 2),
-                }
-
+    for coluna in _com_dados(df):
+        s = df[coluna].dropna()
+        q1, q3 = s.quantile(0.25), s.quantile(0.75)
+        resultado[coluna] = {
+            "media": round(s.mean(), 2),
+            "mediana": round(s.median(), 2),
+            "desvio_padrao": round(s.std(), 2),
+            "q1": round(q1, 2),
+            "q3": round(q3, 2),
+            "iqr": round(q3 - q1, 2),
+            "minimo": round(s.min(), 2),
+            "maximo": round(s.max(), 2),
+            "assimetria": round(s.skew(), 2),
+            "coef_variacao": round(s.std() / s.mean() * 100, 2) if s.mean() else None,
+        }
     return resultado
 
 
-def identificar_outliers(df, coluna):
+def calcular_conformidade(df_leituras, df_clientes, tolerancia=0.10):
     """
-    Identifica outliers em uma coluna usando a regra do IQR:
-    valores abaixo de Q1 - 1.5*IQR ou acima de Q3 + 1.5*IQR são considerados outliers.
-    Retorna um DataFrame com apenas as linhas que são outliers.
+    % de leituras dentro do valor de referência de cada cliente (± tolerância).
+    Só entram os parâmetros que existem na tabela cliente.
     """
-    df = preparar_dados(df)
+    df_leituras = preparar_dados(df_leituras)
+    df_clientes = preparar_dados(df_clientes)
 
+    parametros = [c for c in _com_dados(df_clientes) if c in _com_dados(df_leituras)]
+    linhas = []
+    for _, cliente in df_clientes.iterrows():
+        for c in parametros:
+            ref = cliente[c]
+            if pd.isna(ref):
+                continue
+            leituras = df_leituras[c].dropna()
+            dentro = (leituras - ref).abs() <= abs(ref) * tolerancia
+            linhas.append({
+                "cliente": cliente["nomeCliente"],
+                "parametro": rotulo(c),
+                "referencia": round(ref, 2),
+                "media_monitorada": round(leituras.mean(), 2),
+                "pct_conforme": round(dentro.mean() * 100, 1),
+            })
+    return pd.DataFrame(linhas)
+
+
+def identificar_outliers(df, coluna):
+    """Linhas fora de [Q1 - 1.5*IQR, Q3 + 1.5*IQR]."""
+    df = preparar_dados(df)
     if coluna not in df.columns:
         raise ValueError(f"A coluna '{coluna}' não existe no DataFrame.")
 
-    serie = df[coluna].dropna()
-
-    if serie.empty:
-        return pd.DataFrame()
-
-    q1 = serie.quantile(0.25)
-    q3 = serie.quantile(0.75)
+    q1, q3 = df[coluna].quantile(0.25), df[coluna].quantile(0.75)
     iqr = q3 - q1
-
-    # Limites para detecção de outliers pelo método IQR
-    limite_inferior = q1 - (1.5 * iqr)
-    limite_superior = q3 + (1.5 * iqr)
-
-    outliers = df[
-        (df[coluna] < limite_inferior) |
-        (df[coluna] > limite_superior)
-    ].copy()
-
-    return outliers
+    return df[(df[coluna] < q1 - 1.5 * iqr) | (df[coluna] > q3 + 1.5 * iqr)]
 
 
 def resumir_outliers(df):
-    """
-    Resume a quantidade de outliers encontrados em 'temperatura' e 'ph'.
-    Retorna um dicionário com a contagem e os registros de cada coluna.
-    """
+    """Quantidade e registros (data/hora e valor) de outliers por parâmetro."""
     df = preparar_dados(df)
     resumo = {}
-
-    for coluna in ["temperatura", "ph"]:
-        if coluna in df.columns:
-            outliers = identificar_outliers(df, coluna)
-            resumo[coluna] = {
-                "quantidade": len(outliers),
-                "registros": outliers.to_dict(orient="records")
-            }
-
+    for c in _com_dados(df):
+        outliers = identificar_outliers(df, c)
+        colunas = [col for col in ("data_hora", c) if col in outliers.columns]
+        resumo[c] = {
+            "quantidade": len(outliers),
+            "registros": outliers[colunas].to_dict(orient="records"),
+        }
     return resumo
 
 
-def gerar_grafico_linha(df, coluna, nome_arquivo):
-    """
-    Gera e salva um gráfico de linha mostrando a evolução de uma coluna ao longo do tempo.
-    O arquivo é salvo em OUTPUT_DIR com o nome informado.
-    Retorna o caminho completo do arquivo gerado.
-    """
-    df = preparar_dados(df)
+# ----------------------------------------------------------------- gráficos
 
-    if "data_hora" not in df.columns or coluna not in df.columns:
-        raise ValueError("O DataFrame precisa ter 'data_hora' e a coluna escolhida.")
-
-    # Cria a pasta de saída se ela ainda não existir
+def _salvar(nome_arquivo):
     os.makedirs(OUTPUT_DIR, exist_ok=True)
-
-    dados = df[["data_hora", coluna]].dropna().sort_values("data_hora")
     caminho = os.path.join(OUTPUT_DIR, nome_arquivo)
-
-    plt.figure(figsize=(10, 5))
-    plt.plot(dados["data_hora"], dados[coluna], marker="o")
-    plt.title(f"Evolução de {coluna}")
-    plt.xlabel("Data/Hora")
-    plt.ylabel(coluna.capitalize())
-    plt.xticks(rotation=45)
-    plt.grid(axis="y", linestyle="--", alpha=0.5)
     plt.tight_layout()
-    plt.savefig(caminho)
+    plt.savefig(caminho, dpi=120)
     plt.close()
-
     return caminho
-
-
-def gerar_grafico_comparacao(
-    df_leituras,
-    df_clientes,
-    nome_arquivo_ph="comparacao_ph.png",
-    nome_arquivo_temp="comparacao_temperatura.png"
-):
-    """
-    Gera gráficos comparativos de pH e temperatura
-    entre a água monitorada e as águas engarrafadas.
-    """
-
-    os.makedirs(OUTPUT_DIR, exist_ok=True)
-
-    # Calcula a média das leituras da água monitorada
-    media_leituras = {
-        "nome": "Monitorada (API)",
-        "ph": round(
-            pd.to_numeric(
-                df_leituras["ph"], errors="coerce"
-            ).mean(), 2
-        ),
-        "temperatura": round(
-            pd.to_numeric(
-                df_leituras["temperatura"], errors="coerce"
-            ).mean(), 2
-        ),
-    }
-
-    # Copia os dados dos clientes
-    df_clientes = df_clientes.copy()
-
-    # Padroniza a coluna de nomes
-    if "nomeCliente" in df_clientes.columns:
-        df_clientes["nome"] = df_clientes["nomeCliente"].fillna(
-            "Cliente sem nome"
-        ).astype(str)
-    elif "nome" in df_clientes.columns:
-        df_clientes["nome"] = df_clientes["nome"].fillna(
-            "Cliente sem nome"
-        ).astype(str)
-    else:
-        raise ValueError(
-            "O DataFrame de clientes precisa ter a coluna "
-            "'nomeCliente' ou 'nome'."
-        )
-
-    # Converte as colunas para valores numéricos
-    df_clientes["ph"] = pd.to_numeric(
-        df_clientes["ph"], errors="coerce"
-    )
-    df_clientes["temperatura"] = pd.to_numeric(
-        df_clientes["temperatura"], errors="coerce"
-    )
-
-    # Mantém somente as colunas necessárias para a comparação
-    df_clientes = df_clientes[
-        ["nome", "ph", "temperatura"]
-    ]
-
-    # Junta a água monitorada com as águas engarrafadas
-    df_monitorada = pd.DataFrame([media_leituras])
-
-    df_comparacao = pd.concat(
-        [df_monitorada, df_clientes],
-        ignore_index=True
-    )
-
-    # Garante que os nomes sejam textos
-    df_comparacao["nome"] = (
-        df_comparacao["nome"]
-        .fillna("Fonte sem nome")
-        .astype(str)
-    )
-
-    # Exibe a tabela comparativa
-    print("\nComparação: Água Monitorada vs. Águas Engarrafadas")
-    print(df_comparacao.to_string(index=False))
-
-    # Dados dos gráficos
-    nomes = df_comparacao["nome"].tolist()
-    valores_ph = df_comparacao["ph"].tolist()
-    valores_temp = df_comparacao["temperatura"].tolist()
-
-    # Destaca a água monitorada em azul
-    cores = [
-        "steelblue" if nome == "Monitorada (API)"
-        else "lightgray"
-        for nome in nomes
-    ]
-
-    # Gráfico de pH
-    plt.figure(figsize=(10, 5))
-    plt.bar(
-        nomes,
-        valores_ph,
-        color=cores,
-        edgecolor="black"
-    )
-    plt.title("Comparação de pH")
-    plt.xlabel("Fonte")
-    plt.ylabel("pH")
-    plt.xticks(rotation=30, ha="right")
-    plt.grid(axis="y", linestyle="--", alpha=0.5)
-    plt.tight_layout()
-
-    caminho_ph = os.path.join(
-        OUTPUT_DIR, nome_arquivo_ph
-    )
-    plt.savefig(caminho_ph)
-    plt.close()
-
-    # Gráfico de temperatura
-    plt.figure(figsize=(10, 5))
-    plt.bar(
-        nomes,
-        valores_temp,
-        color=cores,
-        edgecolor="black"
-    )
-    plt.title("Comparação de Temperatura")
-    plt.xlabel("Fonte")
-    plt.ylabel("Temperatura (°C)")
-    plt.xticks(rotation=30, ha="right")
-    plt.grid(axis="y", linestyle="--", alpha=0.5)
-    plt.tight_layout()
-
-    caminho_temp = os.path.join(
-        OUTPUT_DIR, nome_arquivo_temp
-    )
-    plt.savefig(caminho_temp)
-    plt.close()
-
-    return caminho_ph, df_comparacao
 
 
 def gerar_boxplot(df, coluna, nome_arquivo):
     """
-    Gera e salva um boxplot de uma coluna.
-    Útil para visualizar a distribuição dos dados e identificar outliers visualmente.
-    Retorna o caminho completo do arquivo gerado.
+    1 boxplot do parâmetro.
+    Caixa = 50% central das leituras (Q1 a Q3); linha laranja = mediana;
+    triângulo verde = média; bolinhas fora das hastes = outliers.
     """
-    df = preparar_dados(df)
+    dados = preparar_dados(df)[coluna].dropna()
+    q1, q3 = dados.quantile(0.25), dados.quantile(0.75)
 
-    if coluna not in df.columns:
-        raise ValueError(f"A coluna '{coluna}' não existe no DataFrame.")
-
-    # Cria a pasta de saída se ela ainda não existir
-    os.makedirs(OUTPUT_DIR, exist_ok=True)
-
-    dados = df[coluna].dropna()
-    caminho = os.path.join(OUTPUT_DIR, nome_arquivo)
-
-    # Calcula os valores de referência para anotação
-    mediana = dados.median()
-    media   = dados.mean()
-    q1      = dados.quantile(0.25)
-    q3      = dados.quantile(0.75)
-    iqr     = q3 - q1
-    lim_inf = q1 - 1.5 * iqr
-    lim_sup = q3 + 1.5 * iqr
-
-    plt.figure(figsize=(8, 6))
-    plt.boxplot(dados)
-    plt.title(f"Boxplot de {coluna}")
-    plt.ylabel(coluna.capitalize())
+    plt.figure(figsize=(7, 6))
+    plt.boxplot(dados, showmeans=True, widths=0.4,
+                medianprops={"color": "orange", "linewidth": 2},
+                meanprops={"marker": "^", "markerfacecolor": "green", "markeredgecolor": "green"},
+                flierprops={"marker": "o", "markerfacecolor": "red", "markeredgecolor": "red"})
+    plt.title(f"Boxplot - {rotulo(coluna)}\n{len(dados)} leituras")
+    plt.ylabel(rotulo(coluna))
+    plt.xticks([])
     plt.grid(axis="y", linestyle="--", alpha=0.5)
 
-    # Linhas horizontais de referência
-    plt.axhline(media,   color="red",    linestyle="--", linewidth=1, alpha=0.7)
-    plt.axhline(lim_inf, color="orange", linestyle=":",  linewidth=1, alpha=0.7)
-    plt.axhline(lim_sup, color="orange", linestyle=":",  linewidth=1, alpha=0.7)
-
-    # Rótulos anotados à direita de cada linha
-    x_pos = 1.35
-    plt.text(x_pos, mediana, f"Mediana: {mediana:.2f}", va="center", fontsize=8, color="black")
-    plt.text(x_pos, media,   f"Média:   {media:.2f}",   va="center", fontsize=8, color="red")
-    plt.text(x_pos, q1,      f"Q1: {q1:.2f}",           va="center", fontsize=8, color="steelblue")
-    plt.text(x_pos, q3,      f"Q3: {q3:.2f}",           va="center", fontsize=8, color="steelblue")
-    plt.text(x_pos, lim_inf, f"Lim inf: {lim_inf:.2f}", va="center", fontsize=8, color="orange")
-    plt.text(x_pos, lim_sup, f"Lim sup: {lim_sup:.2f}", va="center", fontsize=8, color="orange")
-
-    plt.tight_layout()
-    plt.savefig(caminho)
-    plt.close()
-
-    return caminho
+    # legenda explicando cada elemento do gráfico
+    plt.plot([], [], color="orange", linewidth=2, label=f"Mediana: {dados.median():.2f}")
+    plt.plot([], [], "^", color="green", label=f"Média: {dados.mean():.2f}")
+    plt.plot([], [], "s", color="white", markeredgecolor="black",
+             label=f"Caixa (Q1 a Q3): {q1:.2f} a {q3:.2f}")
+    plt.plot([], [], "_", color="black", label=f"Mín / Máx: {dados.min():.2f} / {dados.max():.2f}")
+    plt.plot([], [], "o", color="red", label="Outlier (valor atípico)")
+    plt.legend(loc="center left", bbox_to_anchor=(1.02, 0.5), fontsize=8)
+    return _salvar(nome_arquivo)
 
 
 def gerar_histograma(df, coluna, nome_arquivo):
     """
-    Gera e salva um histograma de uma coluna.
-    Mostra a frequência de cada faixa de valores, útil para entender a distribuição.
-    Retorna o caminho completo do arquivo gerado.
+    1 histograma do parâmetro.
+    Cada barra = faixa de valores; altura = quantas leituras caíram nela.
     """
-    df = preparar_dados(df)
-
-    if coluna not in df.columns:
-        raise ValueError(f"A coluna '{coluna}' não existe no DataFrame.")
-
-    # Cria a pasta de saída se ela ainda não existir
-    os.makedirs(OUTPUT_DIR, exist_ok=True)
-
-    dados = df[coluna].dropna()
-    caminho = os.path.join(OUTPUT_DIR, nome_arquivo)
+    dados = preparar_dados(df)[coluna].dropna()
 
     plt.figure(figsize=(8, 5))
-    plt.hist(dados, bins=10, edgecolor="black")
-    plt.title(f"Histograma de {coluna}")
-    plt.xlabel(coluna.capitalize())
-    plt.ylabel("Frequência")
+    plt.hist(dados, bins=10, edgecolor="black", color="steelblue", alpha=0.8,
+             label="Nº de leituras na faixa")
+    plt.axvline(dados.mean(), color="red", linestyle="--", label=f"Média: {dados.mean():.2f}")
+    plt.axvline(dados.median(), color="green", label=f"Mediana: {dados.median():.2f}")
+    plt.title(f"Histograma - {rotulo(coluna)}\n{len(dados)} leituras")
+    plt.xlabel(f"{rotulo(coluna)}  (cada barra = uma faixa de valores)")
+    plt.ylabel("Frequência (nº de leituras)")
     plt.grid(axis="y", linestyle="--", alpha=0.5)
-    plt.tight_layout()
-    plt.savefig(caminho)
-    plt.close()
+    plt.legend(loc="best", fontsize=8)
+    return _salvar(nome_arquivo)
 
+
+def gerar_graficos_individuais(df):
+    """1 boxplot + 1 histograma por parâmetro. Retorna os caminhos."""
+    df = preparar_dados(df)
+    caminhos = []
+    for coluna in _com_dados(df):
+        caminhos.append(gerar_boxplot(df, coluna, f"boxplot_{coluna}.png"))
+        caminhos.append(gerar_histograma(df, coluna, f"histograma_{coluna}.png"))
+    return caminhos
+
+
+def gerar_grafico_comparacao(df_leituras, df_clientes):
+    """
+    Compara a média da água monitorada com a água de cada cliente.
+    Só entram os parâmetros que existem na tabela cliente.
+    Retorna (caminhos, tabela_de_comparacao).
+    """
+    df_leituras = preparar_dados(df_leituras)
+    df_clientes = preparar_dados(df_clientes)
+
+    if "nomeCliente" not in df_clientes.columns:
+        raise ValueError("O DataFrame de clientes precisa ter 'nomeCliente'.")
+
+    parametros = [c for c in _com_dados(df_clientes) if c in _com_dados(df_leituras)]
+
+    monitorada = {"nome": "Monitorada (API)"}
+    for c in parametros:
+        monitorada[c] = round(df_leituras[c].mean(), 2)
+
+    clientes = df_clientes.rename(columns={"nomeCliente": "nome"})[["nome"] + parametros]
+    tabela = pd.concat([pd.DataFrame([monitorada]), clientes], ignore_index=True)
+    logger.info("Comparação:\n%s", tabela.to_string(index=False))
+
+    cores = ["steelblue"] + ["lightgray"] * (len(tabela) - 1)
+    caminhos = []
+    for c in parametros:
+        plt.figure(figsize=(8, 5))
+        barras = plt.bar(tabela["nome"], tabela[c].fillna(0), color=cores, edgecolor="black")
+        for barra, valor in zip(barras, tabela[c]):
+            texto = "s/ dado" if pd.isna(valor) else f"{valor:.2f}"
+            plt.text(barra.get_x() + barra.get_width() / 2, barra.get_height(), texto,
+                     ha="center", va="bottom", fontsize=9)
+        plt.title(f"Comparação - {rotulo(c)}\nMédia da água monitorada vs. águas dos clientes")
+        plt.xlabel("Fonte da água")
+        plt.ylabel(rotulo(c))
+        plt.xticks(rotation=30, ha="right")
+        plt.grid(axis="y", linestyle="--", alpha=0.5)
+        plt.bar([], [], color="steelblue", edgecolor="black", label="Água monitorada (média das leituras)")
+        plt.bar([], [], color="lightgray", edgecolor="black", label="Água do cliente (valor cadastrado)")
+        plt.legend(loc="best", fontsize=8)
+        caminhos.append(_salvar(f"comparacao_{c}.png"))
+
+    return caminhos, tabela
+
+
+def gerar_matriz_correlacao(df, nome_arquivo="correlacao_parametros.png"):
+    """
+    Mapa de calor da correlação entre todos os parâmetros.
+    Vermelho (+1): sobem juntos | Azul (-1): um sobe e o outro desce | Branco (0): sem relação.
+    """
+    df = preparar_dados(df)
+    colunas = _com_dados(df)
+    if len(colunas) < 2:
+        raise ValueError("São necessárias ao menos 2 colunas para a correlação.")
+
+    corr = df[colunas].corr()
+    nomes = [rotulo(c).replace(" (", "\n(") for c in colunas]
+
+    plt.figure(figsize=(10, 8))
+    plt.imshow(corr, cmap="coolwarm", vmin=-1, vmax=1)
+    plt.colorbar(label="Correlação (-1 inversa | 0 nenhuma | +1 direta)")
+    plt.xticks(range(len(colunas)), nomes, rotation=45, ha="right", fontsize=8)
+    plt.yticks(range(len(colunas)), nomes, fontsize=8)
+    for i in range(len(colunas)):
+        for j in range(len(colunas)):
+            if pd.notna(corr.iloc[i, j]):
+                plt.text(j, i, f"{corr.iloc[i, j]:.2f}", ha="center", va="center")
+    plt.title("Correlação entre os parâmetros\nQuanto mais forte a cor, mais um parâmetro acompanha o outro")
+    plt.xlabel("Parâmetros medidos")
+    plt.ylabel("Parâmetros medidos")
+    plt.figtext(0.5, 0.01, "Leitura: |valor| acima de 0,7 = relação forte | entre 0,3 e 0,7 = moderada | abaixo de 0,3 = fraca",
+                ha="center", fontsize=8)
+    plt.tight_layout(rect=(0, 0.03, 1, 1))
+    caminho = os.path.join(OUTPUT_DIR, nome_arquivo)
+    os.makedirs(OUTPUT_DIR, exist_ok=True)
+    plt.savefig(caminho, dpi=120)
+    plt.close()
     return caminho

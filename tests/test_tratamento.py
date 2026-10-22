@@ -1,5 +1,7 @@
-from src.processing.tratamento import tratar_dados #import da função 
 import pandas as pd
+
+from src.processing.tratamento import tratar_dados  #import da função 
+
 
 def test_tratar_dados_converte_para_numerico():
     df = pd.DataFrame({

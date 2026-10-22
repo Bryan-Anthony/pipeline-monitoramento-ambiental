@@ -1,4 +1,4 @@
-from pydantic import BaseModel, ConfigDict, ValidationError
+from pydantic import BaseModel, ConfigDict
 
 
 class ChannelContract(BaseModel):

@@ -1,6 +1,8 @@
-from src.processing.validacao import validar_dados
 import pandas as pd
 import pytest
+
+from src.processing.validacao import validar_dados
+
 
 #Testa se do DataFrame estiver vazio
 def test_validar_dados_dataframe_vazio():

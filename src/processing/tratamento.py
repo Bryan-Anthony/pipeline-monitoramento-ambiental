@@ -1,5 +1,5 @@
-from src.ingestion.api_client import ApiClient
 import pandas as pd
+
 from src.utils.logger import Logger
 
 logger = Logger.configurar()

@@ -4,43 +4,51 @@ venv/
 env/
 ENV/
 
-# Caches e ficheiros compilados do Python
+# Python (cache e empacotamento)
 __pycache__/
-*.pyc
-*.pyo
-*.pyd
+*.py[cod]
+*.egg-info/
+build/
+dist/
 
-# Variáveis de ambiente e segredos
+# Testes e linter
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Variáveis de ambiente e segredos
 .env
-.env.local
+.env.*
 *.env
+.streamlit/secrets.toml
 
-# Sistema Operativo - macOS
+# Dados gerados pelo pipeline (mantém só as pastas)
+data/bronze/*
+data/silver/*
+!data/bronze/.gitkeep
+!data/silver/.gitkeep
+
+# Relatórios gerados (gráficos e diagnóstico)
+reports/*
+!reports/.gitkeep
+
+# Logs
+logs/
+*.log
+
+# Sistema operacional
 .DS_Store
 .AppleDouble
 .LSOverride
-
-# Sistema Operativo - Windows
 Thumbs.db
-Thumbs.db:encryptable
 ehthumbs.db
 Desktop.ini
 $RECYCLE.BIN/
-
-# Sistema Operativo - Linux
 *~
-.fuse_hidden*
 .directory
 
-# IDEs e Editores de Código
+# IDEs e editores
 .vscode/
 .idea/
 *.swp
-
-# Logs e Testes
-*.log
-.pytest_cache/
-.coverage
-
-# Arquivos gerados pelo pipeline (gráficos e relatórios)
-reports/

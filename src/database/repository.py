@@ -1,5 +1,6 @@
-from src.database.db_manager import DatabaseManager
 import pandas as pd
+
+from src.database.db_manager import DatabaseManager
 from src.utils.logger import Logger
 
 
