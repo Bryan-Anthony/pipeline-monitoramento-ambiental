@@ -5,8 +5,13 @@ from src.processing.tratamento import tratar_dados  #import da função
 
 def test_tratar_dados_converte_para_numerico():
     df = pd.DataFrame({
+         "entry_id_api": [1],
         "data_hora": ["2026-09-28 10:00:00"],
         "temperatura": ["25.5"],
+        "condutividade": ["120"],
+        "temperatura_do_ar": ["28.0"],
+        "turbidez": ["10.5"],
+        "oxigenio_dissolvido": ["8.2"],
         "ph": ["7.2"]
     })
 
@@ -21,8 +26,13 @@ def test_tratar_dados_converte_para_numerico():
 # testa valores invalidos
 def test_tratar_dados_valor_invalido():
     df = pd.DataFrame({
+        "entry_id_api": [1],
         "data_hora": ["2026-09-28 10:00:00"],
         "temperatura": ["abc"],
+        "condutividade": ["120"],
+        "temperatura_do_ar": ["28.0"],
+        "turbidez": ["10.5"],
+        "oxigenio_dissolvido": ["8.2"],
         "ph": ["invalido"]
     })
     #passa os dados pela função 
@@ -37,8 +47,13 @@ def test_tratar_dados_valor_invalido():
 # Testa se transforma -9999 em NaN
 def test_tratar_dados_valor_menos_9999():
     df = pd.DataFrame({
+        "entry_id_api": [1],
         "data_hora": ["2026-09-28 10:00:00"],
         "temperatura": [-9999],
+        "condutividade": [120],
+        "temperatura_do_ar": [28.0],
+        "turbidez": [10.5],
+        "oxigenio_dissolvido": [8.2],
         "ph": [-9999]
     })
 
@@ -53,12 +68,17 @@ def test_tratar_dados_valor_menos_9999():
 #testa se ela consegue tratar varias linhas de uma vez 
 def test_tratar_dados_varias_linhas():
     df = pd.DataFrame({
-           "data_hora": [
+           "entry_id_api": [1, 2, 3],
+        "data_hora": [
             "2026-09-28 10:00:00",
             "2026-09-28 11:00:00",
             "2026-09-28 12:00:00"
         ],
         "temperatura": ["25.5", "30.2", "abc"],
+        "condutividade": ["120", "130", "140"],
+        "temperatura_do_ar": ["28.0", "29.0", "30.0"],
+        "turbidez": ["10.5", "11.5", "12.5"],
+        "oxigenio_dissolvido": ["8.2", "7.9", "8.0"],
         "ph": ["7.2", "6.8", "invalido"]
     })
 
