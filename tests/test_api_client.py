@@ -1,9 +1,10 @@
 # Dado uma resposta de channel com field1 : temperature e feeds com field1: -9999.00  quando get dados então deve exibir "Temperature" e "-9999,00".
 # dado resposta com sucesso da api quando get dados então responda corretamente  
 
-from unittest.mock import patch, Mock
+from unittest.mock import Mock, patch
 
 from src.ingestion.api_client import ApiClient
+
 
 def test_apiClient():
     # Dado uma resposta da API com temperatura 

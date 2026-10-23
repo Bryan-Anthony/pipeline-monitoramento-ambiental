@@ -1,6 +1,8 @@
 import requests
+
 from src.config import API_BASE_URL
 from src.utils.logger import Logger
+
 
 class ApiClient:
 

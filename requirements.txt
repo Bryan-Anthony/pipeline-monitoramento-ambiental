@@ -1,18 +1,22 @@
-#Framework & Servidor ASGI
-fastapi>=0.110.0
-uvicorn>=0.28.0
-
-#Validação e Manipulação de Dados
-pydantic>=2.6.0
+# Dados e análise
 pandas>=2.2.0
 numpy>=1.26.0
-scipy>=1.11.0
 matplotlib>=3.8.0
-cryptography>=42.0.0
-pyodbc>=5.1.0
 
-#Cliente HTTP
+# Camada Silver em Parquet
+pyarrow>=15.0.0
+
+# Validação do contrato de dados
+pydantic>=2.6.0
+
+# Ingestão (API ThingSpeak)
 requests>=2.31.0
 
-#Testes
+# Banco de dados (SQL Server)
+pyodbc>=5.1.0
+
+# Dashboard
+streamlit>=1.40.0
+
+# Testes
 pytest>=8.0.0

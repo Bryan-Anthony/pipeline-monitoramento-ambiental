@@ -1,6 +1,7 @@
-from src.processing.data_contract import validar_data_contract
 import pytest
 from pydantic import ValidationError
+
+from src.processing.data_contract import validar_data_contract
 
 
 # Testa se a função valida uma resposta da API com os campos obrigatórios

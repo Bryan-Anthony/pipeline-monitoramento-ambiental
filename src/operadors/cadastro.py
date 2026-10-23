@@ -1,11 +1,11 @@
 
-from getpass import getpass
-import os
-import logging
 import hashlib
+import os
+from getpass import getpass
+
+from src.database.repository import MonitoramentoRepository
 from src.operadors.operador import Operador
-from src.database.repository import MonitoramentoRepository 
-from src.utils.logger import Logger 
+from src.utils.logger import Logger
 
 
 class CadastroOperador:

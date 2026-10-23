@@ -1,15 +1,16 @@
-from src.ingestion.api_client import ApiClient
 from datetime import datetime
-from src.processing.data_contract import validar_data_contract
-from pydantic import ValidationError
-
-import pandas as pd
 from pathlib import Path
 
+import pandas as pd
+from pydantic import ValidationError
+
+from src.ingestion.api_client import ApiClient
+from src.processing.data_contract import validar_data_contract
+from src.processing.transformacao import transformar_dados
 from src.processing.tratamento import tratar_dados
 from src.processing.validacao import validar_dados
-from src.processing.transformacao import transformar_dados
 from src.utils.logger import Logger
+
 
 class IngestionService:
 
@@ -47,7 +48,6 @@ class IngestionService:
 
             # Remove o timezone para compatibilidade com SQL Server
 
-            print(f"{data.tz_localize(None) if data.tzinfo else data}" + "Aqui!")
             return data.tz_localize(None) if data.tzinfo else data
 
         except (ValueError, TypeError) as erro:
@@ -177,5 +177,13 @@ class IngestionService:
         if not df.empty:
             print("\nPrimeira data:")
             print(df["data_hora"].iloc[0])
+
+        # 11. Salvar os dados tratados em Parquet (Silver)
+        pasta_silver = Path.cwd() / "data" / "silver"
+        pasta_silver.mkdir(parents=True, exist_ok=True)
+        arquivo_silver = pasta_silver / "leituras_tratadas.parquet"
+        df.to_parquet(arquivo_silver, index=False)
+        self.logger.info("Dados tratados salvos na camada Silver.")
+        print(f"Parquet Silver salvo em: {arquivo_silver}")
 
         return df

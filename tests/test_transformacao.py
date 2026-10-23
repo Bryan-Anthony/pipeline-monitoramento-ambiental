@@ -1,6 +1,6 @@
-from src.processing.transformacao import transformar_dados  # import da função
-
 import pandas as pd
+
+from src.processing.transformacao import transformar_dados  # import da função
 
 
 def test_transformar_data_hora():
